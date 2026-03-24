@@ -41,21 +41,29 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Demo-login: werkt in productie wanneer DEMO_EMAIL is ingesteld
-if (process.env.DEMO_EMAIL) {
+const demoEmail = process.env.DEMO_EMAIL
+if (demoEmail) {
   providers.push(
     Credentials({
       id:   'demo-login',
       name: 'Demo Login',
       credentials: {},
       async authorize() {
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, process.env.DEMO_EMAIL!))
-          .limit(1)
-        if (!user) return null
-        // Geef alleen de velden terug die NextAuth v5 verwacht
-        return { id: user.id, email: user.email ?? '', name: user.name ?? null, image: user.image ?? null }
+        try {
+          const [user] = await db
+            .select({ id: users.id, email: users.email, name: users.name, image: users.image })
+            .from(users)
+            .where(eq(users.email, demoEmail))
+            .limit(1)
+          if (!user) {
+            console.error('[demo-login] gebruiker niet gevonden:', demoEmail)
+            return null
+          }
+          return { id: user.id, email: user.email ?? '', name: user.name ?? null, image: user.image ?? null }
+        } catch (err) {
+          console.error('[demo-login] DB fout:', err)
+          return null
+        }
       },
     }) as any
   )
