@@ -1,26 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,800;0,900;1,800;1,900&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-primary:                #46f1c5;
+  --color-primary-container:      #00d4aa;
+  --color-on-primary:             #00382b;
+  --color-surface:                #071325;
+  --color-surface-container:      #142032;
+  --color-surface-container-high: #1f2a3d;
+  --color-surface-container-low:  #101c2e;
+  --color-on-surface:             #d7e3fc;
+  --color-on-surface-variant:     #bacac2;
+  --color-secondary:              #adc8f5;
+  --color-secondary-container:    #2f4a70;
+  --color-error:                  #ffb4ab;
+  --color-outline:                #85948d;
+
+  --font-headline: 'Inter', sans-serif;
+  --font-body:     'Manrope', sans-serif;
+  --font-label:    'Plus Jakarta Sans', sans-serif;
+
+  --radius-card: 2.5rem;
+
+  --shadow-glow:    0 0 30px rgba(70,241,197,0.3);
+  --shadow-glow-lg: 0 0 60px rgba(70,241,197,0.4);
+  --shadow-deep:    0 20px 60px rgba(3,14,32,0.8);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@layer base {
+  html {
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+    font-family: var(--font-body);
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    overscroll-behavior: none;
+  }
+
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(70, 241, 197, 0.3);
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(70, 241, 197, 0.2); border-radius: 999px; }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer components {
+  .glass-card {
+    background: rgba(42, 53, 72, 0.4);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, #46f1c5, #00d4aa);
+  }
+
+  .tonal-gradient {
+    background: linear-gradient(180deg, rgba(7,19,37,0) 0%, rgba(7,19,37,0.95) 100%);
+  }
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    font-family: 'Material Symbols Outlined';
+    font-style: normal;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    user-select: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
