@@ -7,16 +7,21 @@ import { db } from '@/lib/db'
 import { users, accounts, sessions, verificationTokens } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
-const providers = [
-  Google({
-    clientId:     process.env.GOOGLE_CLIENT_ID!,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-  }),
-  Resend({
-    apiKey: process.env.RESEND_API_KEY!,
+const providers = []
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(Google({
+    clientId:     process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  }))
+}
+
+if (process.env.RESEND_API_KEY) {
+  providers.push(Resend({
+    apiKey: process.env.RESEND_API_KEY,
     from:   process.env.EMAIL_FROM ?? 'noreply@vaarsamen.nl',
-  }),
-]
+  }))
+}
 
 // Directe email-login in development (geen wachtwoord nodig)
 if (process.env.NODE_ENV !== 'production') {
