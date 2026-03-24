@@ -24,7 +24,7 @@ if (process.env.RESEND_API_KEY) {
 }
 
 // Directe email-login in development (geen wachtwoord nodig)
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_LOGIN === '1') {
   providers.push(
     Credentials({
       id:   'dev-login',

@@ -7,7 +7,7 @@ export default async function LoginPage() {
   const session = await auth()
   if (session) redirect('/ontdekken')
 
-  const isDev      = process.env.NODE_ENV !== 'production'
+  const isDev      = process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_LOGIN === '1'
   const isDemoEnabled = !!process.env.DEMO_EMAIL
 
   return (
