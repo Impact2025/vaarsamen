@@ -14,7 +14,11 @@ export default auth((req) => {
   // Publieke routes: altijd doorlaten
   const isPublicPage = ['/', '/login'].includes(pathname)
   const isPublicApi  = PUBLIC_API_ROUTES.some(r => pathname.startsWith(r))
-  const isStaticFile = pathname.startsWith('/_next') || pathname.startsWith('/favicon')
+  const isStaticFile = pathname.startsWith('/_next')
+    || pathname.startsWith('/favicon')
+    || pathname === '/manifest.json'
+    || pathname === '/sw.js'
+    || pathname.startsWith('/icons/')
 
   if (isPublicPage || isPublicApi || isStaticFile) {
     return NextResponse.next()
