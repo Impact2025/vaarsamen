@@ -3,7 +3,6 @@ import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import Google from 'next-auth/providers/google'
 import Resend from 'next-auth/providers/resend'
 import Credentials from 'next-auth/providers/credentials'
-import { neon } from '@neondatabase/serverless'
 import { db } from '@/lib/db'
 import { users, accounts, sessions, verificationTokens } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -55,25 +54,9 @@ if (demoEmail) {
       name: 'Demo Login',
       credentials: {},
       async authorize() {
-        try {
-          // Gebruik raw SQL — omzeilt mogelijke Drizzle ORM mapping issues
-          const sql = neon(process.env.DATABASE_URL!)
-          const rows = await sql`
-            SELECT id, email, name, image
-            FROM users
-            WHERE lower(email) = lower(${demoEmail})
-            LIMIT 1
-          `
-          const row = rows[0] as { id: string; email: string; name: string | null; image: string | null } | undefined
-          if (!row) {
-            console.error('[demo-login] gebruiker niet gevonden via raw SQL:', demoEmail)
-            return null
-          }
-          return { id: row.id, email: row.email ?? '', name: row.name ?? null, image: row.image ?? null }
-        } catch (err) {
-          console.error('[demo-login] DB fout:', err)
-          return null
-        }
+        const userId = process.env.DEMO_USER_ID
+        if (!userId) return null
+        return { id: userId, email: demoEmail, name: 'Demo', image: null }
       },
     }) as any
   )
