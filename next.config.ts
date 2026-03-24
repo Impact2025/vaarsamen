@@ -30,7 +30,13 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', 'vaarsamen.nl', '*.vaarsamen.nl'],
+      allowedOrigins: [
+        'localhost:3000',
+        'vaarsamen.vercel.app',
+        '*.vercel.app',
+        'vaarsamen.nl',
+        '*.vaarsamen.nl',
+      ],
     },
   },
 }
