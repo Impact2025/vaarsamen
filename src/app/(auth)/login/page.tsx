@@ -1,6 +1,7 @@
 import { signIn } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
+import { AuthError } from 'next-auth'
 
 export default async function LoginPage() {
   const session = await auth()
@@ -110,7 +111,15 @@ export default async function LoginPage() {
           <form
             action={async () => {
               'use server'
-              await signIn('demo-login', { redirectTo: '/ontdekken' })
+              try {
+                await signIn('demo-login', { redirectTo: '/ontdekken' })
+              } catch (e: unknown) {
+                // NEXT_REDIRECT moet altijd doorkomen
+                if (e instanceof Error && e.message === 'NEXT_REDIRECT') throw e
+                if ((e as { digest?: string })?.digest?.startsWith('NEXT_REDIRECT')) throw e
+                // AuthError: stuur terug naar login
+                redirect('/login?error=demo')
+              }
             }}
           >
             <button

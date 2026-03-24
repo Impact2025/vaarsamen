@@ -53,7 +53,9 @@ if (process.env.DEMO_EMAIL) {
           .from(users)
           .where(eq(users.email, process.env.DEMO_EMAIL!))
           .limit(1)
-        return user ? { ...user, isAdmin: false } : null
+        if (!user) return null
+        // Geef alleen de velden terug die NextAuth v5 verwacht
+        return { id: user.id, email: user.email ?? '', name: user.name ?? null, image: user.image ?? null }
       },
     }) as any
   )
