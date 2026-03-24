@@ -18,7 +18,7 @@ const providers = [
   }),
 ]
 
-// Directe email-login alleen in development (geen wachtwoord nodig)
+// Directe email-login in development (geen wachtwoord nodig)
 if (process.env.NODE_ENV !== 'production') {
   providers.push(
     Credentials({
@@ -40,6 +40,25 @@ if (process.env.NODE_ENV !== 'production') {
   )
 }
 
+// Demo-login: werkt in productie wanneer DEMO_EMAIL is ingesteld
+if (process.env.DEMO_EMAIL) {
+  providers.push(
+    Credentials({
+      id:   'demo-login',
+      name: 'Demo Login',
+      credentials: {},
+      async authorize() {
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, process.env.DEMO_EMAIL!))
+          .limit(1)
+        return user ? { ...user, isAdmin: false } : null
+      },
+    }) as any
+  )
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
     usersTable:              users,
@@ -49,8 +68,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   }),
   providers,
   session: {
-    // Credentials vereist JWT strategy (geen DB-sessie)
-    strategy: process.env.NODE_ENV !== 'production' ? 'jwt' : 'database',
+    // JWT strategy: vereist voor Credentials provider (dev-login + demo-login)
+    strategy: 'jwt',
   },
   callbacks: {
     async session({ session, token, user }) {

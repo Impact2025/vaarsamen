@@ -6,7 +6,8 @@ export default async function LoginPage() {
   const session = await auth()
   if (session) redirect('/ontdekken')
 
-  const isDev = process.env.NODE_ENV !== 'production'
+  const isDev      = process.env.NODE_ENV !== 'production'
+  const isDemoEnabled = !!process.env.DEMO_EMAIL
 
   return (
     <main className="min-h-screen bg-surface flex flex-col items-center justify-center p-6">
@@ -103,6 +104,31 @@ export default async function LoginPage() {
           <a href="/voorwaarden" className="text-primary hover:underline">gebruiksvoorwaarden</a>.
           Minimale leeftijd: 16 jaar.
         </p>
+
+        {/* Demo account knop */}
+        {isDemoEnabled && (
+          <form
+            action={async () => {
+              'use server'
+              await signIn('demo-login', { redirectTo: '/ontdekken' })
+            }}
+          >
+            <button
+              type="submit"
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-6
+                         glass-card border border-primary/20 rounded-full
+                         text-primary font-label font-bold text-sm
+                         hover:border-primary/40 active:scale-95 transition-all
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span className="material-symbols-outlined text-base" aria-hidden="true"
+                    style={{ fontVariationSettings: "'FILL' 1" }}>
+                play_circle
+              </span>
+              Probeer met demo account
+            </button>
+          </form>
+        )}
 
         {/* Dev-only: directe login zonder email */}
         {isDev && (
