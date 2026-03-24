@@ -3,6 +3,7 @@ import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import Google from 'next-auth/providers/google'
 import Resend from 'next-auth/providers/resend'
 import Credentials from 'next-auth/providers/credentials'
+import { neon } from '@neondatabase/serverless'
 import { db } from '@/lib/db'
 import { users, accounts, sessions, verificationTokens } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -55,16 +56,20 @@ if (demoEmail) {
       credentials: {},
       async authorize() {
         try {
-          const [user] = await db
-            .select({ id: users.id, email: users.email, name: users.name, image: users.image })
-            .from(users)
-            .where(eq(users.email, demoEmail))
-            .limit(1)
-          if (!user) {
-            console.error('[demo-login] gebruiker niet gevonden:', demoEmail)
+          // Gebruik raw SQL — omzeilt mogelijke Drizzle ORM mapping issues
+          const sql = neon(process.env.DATABASE_URL!)
+          const rows = await sql`
+            SELECT id, email, name, image
+            FROM users
+            WHERE lower(email) = lower(${demoEmail})
+            LIMIT 1
+          `
+          const row = rows[0] as { id: string; email: string; name: string | null; image: string | null } | undefined
+          if (!row) {
+            console.error('[demo-login] gebruiker niet gevonden via raw SQL:', demoEmail)
             return null
           }
-          return { id: user.id, email: user.email ?? '', name: user.name ?? null, image: user.image ?? null }
+          return { id: row.id, email: row.email ?? '', name: row.name ?? null, image: row.image ?? null }
         } catch (err) {
           console.error('[demo-login] DB fout:', err)
           return null
