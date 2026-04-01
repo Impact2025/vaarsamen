@@ -1,24 +1,41 @@
-import { and, eq, isNull, ne, notInArray, desc, asc, sql, or } from 'drizzle-orm'
+import { and, eq, isNull, ne, notInArray, notExists, inArray, desc, asc, sql, or } from 'drizzle-orm'
+import { unstable_cache } from 'next/cache'
 import { db } from '@/lib/db'
 import { profiles, swipes, matches, boats } from '@/lib/db/schema'
 
-export async function getProfileByUserId(userId: string) {
-  const [profile] = await db
-    .select()
-    .from(profiles)
-    .where(and(eq(profiles.userId, userId), isNull(profiles.deletedAt)))
-    .limit(1)
-  return profile ?? null
-}
+/**
+ * Gecached profiel ophalen via userId.
+ * TTL: 60 seconden. Invalideer met revalidateTag('profiles') na profiel-wijziging.
+ */
+export const getProfileByUserId = unstable_cache(
+  async (userId: string) => {
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(and(eq(profiles.userId, userId), isNull(profiles.deletedAt)))
+      .limit(1)
+    return profile ?? null
+  },
+  ['profile-by-user'],
+  { revalidate: 60, tags: ['profiles'] },
+)
 
-export async function getProfileById(id: string) {
-  const [profile] = await db
-    .select()
-    .from(profiles)
-    .where(and(eq(profiles.id, id), isNull(profiles.deletedAt)))
-    .limit(1)
-  return profile ?? null
-}
+/**
+ * Gecached profiel ophalen via profiel-ID.
+ * TTL: 60 seconden. Invalideer met revalidateTag('profiles') na profiel-wijziging.
+ */
+export const getProfileById = unstable_cache(
+  async (id: string) => {
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(and(eq(profiles.id, id), isNull(profiles.deletedAt)))
+      .limit(1)
+    return profile ?? null
+  },
+  ['profile-by-id'],
+  { revalidate: 60, tags: ['profiles'] },
+)
 
 interface DiscoveryFilters {
   cwoLevels?:    string[]
@@ -34,7 +51,7 @@ interface DiscoveryFilters {
 /**
  * Haalt discovery feed op:
  * - Sluit eigen profiel uit
- * - Sluit al-geswiped profielen uit
+ * - Sluit al-geswiped profielen uit via NOT EXISTS subquery (schaalt bij duizenden swipes)
  * - Sluit soft-deleted profielen uit
  * - Vult aan met featured profielen als feed te klein is (cold-start strategie)
  */
@@ -44,19 +61,22 @@ export async function getDiscoveryFeed(
 ) {
   const limit = Math.min(filters.limit ?? 20, 20)
 
-  // Haal IDs op die al geswiped zijn
-  const swipedIds = await db
-    .select({ swipedId: swipes.swipedId })
-    .from(swipes)
-    .where(eq(swipes.swiperId, currentProfileId))
-
-  const excludeIds = [currentProfileId, ...swipedIds.map(s => s.swipedId)]
+  // NOT EXISTS subquery: geen NOT IN (lijst) meer — blijft efficiënt bij elk volume swipes
+  const notAlreadySwiped = notExists(
+    db.select({ one: sql<number>`1` })
+      .from(swipes)
+      .where(and(
+        eq(swipes.swiperId, currentProfileId),
+        eq(swipes.swipedId, profiles.id),
+      ))
+  )
 
   const conditions = [
     isNull(profiles.deletedAt),
     eq(profiles.isVisible, true),
     eq(profiles.isOnboarded, true),
-    notInArray(profiles.id, excludeIds),
+    ne(profiles.id, currentProfileId),
+    notAlreadySwiped,
   ]
 
   // Vaargebieden filter — alleen als huidige gebruiker gebieden heeft ingesteld
@@ -96,8 +116,7 @@ export async function getDiscoveryFeed(
 
   // Cold-start strategie: vul aan met featured profielen als feed te klein is
   if (result.length < 5) {
-    const featuredIds = result.map(p => p.id)
-    const alreadyExcluded = [...excludeIds, ...featuredIds]
+    const alreadyShown = [currentProfileId, ...result.map(p => p.id)]
 
     const featured = await db
       .select()
@@ -105,7 +124,8 @@ export async function getDiscoveryFeed(
       .where(and(
         isNull(profiles.deletedAt),
         eq(profiles.isFeatured, true),
-        notInArray(profiles.id, alreadyExcluded),
+        notInArray(profiles.id, alreadyShown), // klein array: max limit+1
+        notAlreadySwiped,
       ))
       .limit(limit - result.length)
 
@@ -119,7 +139,7 @@ export async function getDiscoveryFeed(
   const profileBoats = await db
     .select()
     .from(boats)
-    .where(notInArray(boats.profileId, profileIds.length > 0 ? [] : ['placeholder']))
+    .where(inArray(boats.profileId, profileIds))
 
   const boatsByProfile = profileBoats.reduce((acc, boat) => {
     if (!acc[boat.profileId]) acc[boat.profileId] = []

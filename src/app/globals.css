@@ -28,11 +28,36 @@
 }
 
 @layer base {
+  /* ── Dark theme (default) ──────────────────────────────── */
+  html, html.dark {
+    color-scheme: dark;
+  }
+
+  /* ── Light theme ────────────────────────────────────────── */
+  html.light {
+    color-scheme: light;
+    --color-primary:                #007a62;
+    --color-primary-container:      #005544;
+    --color-on-primary:             #ffffff;
+    --color-surface:                #f0f7ff;
+    --color-surface-container:      #e2edf9;
+    --color-surface-container-high: #d3e3f0;
+    --color-surface-container-low:  #f5faff;
+    --color-on-surface:             #071325;
+    --color-on-surface-variant:     #3a5570;
+    --color-secondary:              #1a4e84;
+    --color-secondary-container:    #d6e8f8;
+    --color-error:                  #b0001f;
+    --color-outline:                #5a7a72;
+    --shadow-glow:    0 0 30px rgba(0,122,98,0.18);
+    --shadow-glow-lg: 0 0 60px rgba(0,122,98,0.22);
+    --shadow-deep:    0 20px 60px rgba(7,19,37,0.09);
+  }
+
   html {
     background-color: var(--color-surface);
     color: var(--color-on-surface);
     font-family: var(--font-body);
-    color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -62,12 +87,21 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
+  html.light .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
   .gradient-primary {
     background: linear-gradient(135deg, #46f1c5, #00d4aa);
   }
 
   .tonal-gradient {
     background: linear-gradient(180deg, rgba(7,19,37,0) 0%, rgba(7,19,37,0.95) 100%);
+  }
+
+  html.light .tonal-gradient {
+    background: linear-gradient(180deg, rgba(240,247,255,0) 0%, rgba(240,247,255,0.97) 100%);
   }
 
   .material-symbols-outlined {

@@ -1,13 +1,20 @@
 import { signIn } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { AuthError } from 'next-auth'
+import { DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>
+}) {
   const session = await auth()
   if (session) redirect('/ontdekken')
 
-  const isDev      = process.env.NODE_ENV !== 'production' || !!process.env.ALLOW_DEV_LOGIN
+  const { callbackUrl, error } = await searchParams
+  const redirectTo = callbackUrl ?? '/ontdekken'
+
+  const isDev         = process.env.NODE_ENV !== 'production' || !!process.env.ALLOW_DEV_LOGIN
   const isDemoEnabled = !!process.env.DEMO_EMAIL
 
   return (
@@ -34,13 +41,24 @@ export default async function LoginPage() {
           </p>
         </div>
 
+        {/* Foutmelding */}
+        {error && (
+          <div className="rounded-2xl bg-error/10 border border-error/20 px-4 py-3">
+            <p className="font-body text-sm text-error text-center">
+              {error === 'demo'
+                ? 'Demo login mislukt. Probeer het opnieuw.'
+                : 'Er ging iets mis. Probeer het opnieuw.'}
+            </p>
+          </div>
+        )}
+
         {/* Login opties */}
         <div className="glass-card rounded-card p-6 space-y-4">
           {/* Google */}
           <form
             action={async () => {
               'use server'
-              await signIn('google', { redirectTo: '/ontdekken' })
+              await signIn('google', { redirectTo })
             }}
           >
             <button
@@ -66,7 +84,7 @@ export default async function LoginPage() {
             action={async (formData: FormData) => {
               'use server'
               const email = formData.get('email') as string
-              await signIn('resend', { email, redirectTo: '/ontdekken' })
+              await signIn('resend', { email, redirectTo })
             }}
             className="space-y-3"
           >
@@ -112,7 +130,9 @@ export default async function LoginPage() {
             action={async () => {
               'use server'
               try {
-                await signIn('demo-login', { redirectTo: '/ontdekken' })
+                await signIn('demo-login', {
+                  redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
+                })
               } catch (e: unknown) {
                 // NEXT_REDIRECT moet altijd doorkomen
                 if (e instanceof Error && e.message === 'NEXT_REDIRECT') throw e
@@ -149,7 +169,7 @@ export default async function LoginPage() {
               action={async (formData: FormData) => {
                 'use server'
                 const email = formData.get('email') as string
-                await signIn('dev-login', { email, redirectTo: '/ontdekken' })
+                await signIn('dev-login', { email, redirectTo })
               }}
               className="flex gap-2"
             >

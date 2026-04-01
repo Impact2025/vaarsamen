@@ -1,21 +1,26 @@
 import { put } from '@vercel/blob'
 import { auth } from '@/lib/auth'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+/** Verwijder path-traversal tekens en beperk tot veilige karakters */
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9._-]/g, '_') // alleen veilige karakters
+    .replace(/\.{2,}/g, '_')           // geen dubbele punten (path traversal)
+    .slice(0, 100)                     // maximale lengte
+    || 'upload'
+}
 
 export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user?.id) return new Response('Unauthorized', { status: 401 })
 
   // Rate limiting per gebruiker
-  const { allowed } = checkRateLimit(
-    `upload:${session.user.id}`,
-    RATE_LIMITS.upload.max,
-    RATE_LIMITS.upload.windowMs
-  )
+  const { allowed } = checkRateLimit('upload', session.user.id)
   if (!allowed) return Response.json({ error: 'Te veel uploads' }, { status: 429 })
 
   const form = await req.formData()
@@ -30,9 +35,9 @@ export async function POST(req: Request) {
   const profile = await getProfileByUserId(session.user.id)
   const folder  = profile ? `avatars/${profile.id}` : `temp/${session.user.id}`
 
-  const blob = await put(`${folder}/${Date.now()}-${file.name}`, file, {
+  const blob = await put(`${folder}/${Date.now()}-${sanitizeFilename(file.name)}`, file, {
     access:      'public',
-    contentType: file.type,
+    contentType: file.type, // altijd server-gevalideerd MIME type, nooit client-hint
   })
 
   return Response.json({ url: blob.url })

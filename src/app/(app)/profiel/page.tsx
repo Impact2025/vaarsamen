@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
 import { getMyTochten } from '@/lib/db/queries/tochten'
+import { getMySchools } from '@/lib/db/queries/school'
 import { db } from '@/lib/db'
 import { boats, reviews } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
@@ -19,10 +20,11 @@ export default async function ProfielPage() {
   const profile = await getProfileByUserId(session.user.id)
   if (!profile) redirect('/onboarding')
 
-  const [profileBoats, profileReviews, myTochten] = await Promise.all([
+  const [profileBoats, profileReviews, myTochten, mySchools] = await Promise.all([
     db.select().from(boats).where(eq(boats.profileId, profile.id)),
     db.select().from(reviews).where(eq(reviews.revieweeId, profile.id)).orderBy(desc(reviews.createdAt)).limit(5),
     getMyTochten(profile.id),
+    getMySchools(session.user.id),
   ])
 
   return (
@@ -290,6 +292,91 @@ export default async function ProfielPage() {
           </Link>
         </section>
       )}
+
+      {/* Mijn school */}
+      <section className="glass-card rounded-card p-5 mb-4" aria-labelledby="school-heading">
+        <div className="flex items-center justify-between mb-3">
+          <h3 id="school-heading" className="font-label text-sm font-bold text-on-surface uppercase tracking-wider">
+            Zeilschool
+          </h3>
+          {mySchools.length === 0 && (
+            <Link
+              href="/school/nieuw"
+              className="flex items-center gap-1 font-label text-xs text-primary hover:underline"
+            >
+              <span className="material-symbols-outlined text-sm" aria-hidden="true">add</span>
+              School aanmelden
+            </Link>
+          )}
+        </div>
+
+        {mySchools.length === 0 ? (
+          <div className="text-center py-3">
+            <p className="font-body text-sm text-on-surface-variant mb-3">
+              Nog geen zeilschool gekoppeld.
+            </p>
+            <Link
+              href="/school/nieuw"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary/10 text-primary font-label text-sm font-semibold hover:bg-primary/20 transition-colors"
+            >
+              <span className="material-symbols-outlined text-sm" aria-hidden="true">school</span>
+              School aanmelden
+            </Link>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {mySchools.map(school => {
+              const href = school.role === 'cursist'
+                ? '/mijn-vorderingen'
+                : `/school/${school.id}/dashboard`
+              const icon = school.role === 'eigenaar'    ? 'star'
+                         : school.role === 'instructeur' ? 'person_check'
+                         : 'school'
+              const roleLabel = school.role === 'eigenaar'    ? 'Eigenaar'
+                              : school.role === 'instructeur' ? 'Instructeur'
+                              : 'Cursist'
+              return (
+                <li key={school.id}>
+                  <Link
+                    href={href}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-surface-container hover:border-primary/20 hover:bg-surface-container-high transition-all"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-primary text-base" aria-hidden="true">{icon}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-label text-sm font-semibold text-on-surface truncate">{school.name}</p>
+                      <p className="font-label text-xs text-on-surface-variant">
+                        {roleLabel}{school.city ? ` · ${school.city}` : ''}
+                      </p>
+                    </div>
+                    <span className="material-symbols-outlined text-sm text-on-surface-variant flex-shrink-0" aria-hidden="true">chevron_right</span>
+                  </Link>
+                </li>
+              )
+            })}
+
+            {/* Link naar mijn vorderingen als cursist */}
+            {mySchools.some(s => s.role === 'cursist') && (
+              <li>
+                <Link
+                  href="/mijn-vorderingen"
+                  className="flex items-center gap-3 p-3 rounded-xl border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-primary text-base" aria-hidden="true">trending_up</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-label text-sm font-semibold text-primary">Mijn vorderingen bekijken</p>
+                    <p className="font-label text-xs text-on-surface-variant">Jouw vorderingenstaat per cursus</p>
+                  </div>
+                  <span className="material-symbols-outlined text-sm text-primary flex-shrink-0" aria-hidden="true">chevron_right</span>
+                </Link>
+              </li>
+            )}
+          </ul>
+        )}
+      </section>
 
       {/* Uitloggen */}
       <form action={async () => {

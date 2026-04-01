@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth'
 import { reportSchema } from '@/lib/validations'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 import { db } from '@/lib/db'
 import { reports } from '@/lib/db/schema'
 import { eq, count } from 'drizzle-orm'
@@ -13,11 +14,7 @@ export async function POST(req: Request) {
   if (!session?.user?.id) return Response.json({ error: 'Niet ingelogd' }, { status: 401 })
 
   // Rate limiting: max 5 rapportages per 5 minuten
-  const { allowed } = checkRateLimit(
-    `report:${session.user.id}`,
-    RATE_LIMITS.report.max,
-    RATE_LIMITS.report.windowMs
-  )
+  const { allowed } = checkRateLimit('report', session.user.id)
   if (!allowed) return Response.json({ error: 'Te veel rapportages' }, { status: 429 })
 
   const profile = await getProfileByUserId(session.user.id)
@@ -60,7 +57,7 @@ export async function POST(req: Request) {
         subject: `[VaarSamen] Profiel ${reportedId} heeft ${total} rapportages`,
         text:    `Profiel ${reportedId} heeft ${total} rapportages ontvangen. Controleer via het admin dashboard.`,
       }),
-    }).catch(console.error)
+    }).catch((err: unknown) => logger.error('Admin notificatie mislukt', { err: String(err) }))
   }
 
   return Response.json({ success: true }, { status: 201 })

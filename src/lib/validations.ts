@@ -89,3 +89,79 @@ export const availabilitySchema = z.object({
   isAvailable: z.boolean().default(true),
   note:        z.string().max(200).optional(),
 })
+
+// ─── ZEILSCHOOL ───────────────────────────────────────────────────────────────
+
+export const schoolCreateSchema = z.object({
+  name:        z.string().min(2, 'Naam moet minimaal 2 tekens zijn').max(100),
+  slug:        z.string()
+                 .min(2, 'Slug moet minimaal 2 tekens zijn')
+                 .max(50)
+                 .regex(/^[a-z0-9-]+$/, 'Slug mag alleen kleine letters, cijfers en koppeltekens bevatten'),
+  description: z.string().max(500).optional(),
+  straat:      z.string().max(100).optional(),
+  huisnummer:  z.string().max(20).optional(),
+  postcode:    z.string().max(8).optional(),
+  city:        z.string().max(100).optional(),
+  website:     z.string().url('Voer een geldige URL in').optional().or(z.literal('')),
+})
+
+export const schoolUpdateSchema = schoolCreateSchema.partial().omit({ slug: true })
+
+// ─── CURSUS ───────────────────────────────────────────────────────────────────
+
+export const schoolCourseSchema = z.object({
+  name:        z.string().min(2, 'Naam moet minimaal 2 tekens zijn').max(150),
+  cwoLevel:    z.enum(['geen', 'cwo1', 'cwo2', 'cwo3', 'cwo4', 'cwo_kielboot1', 'cwo_kielboot2', 'cwo_kielboot3']).default('cwo_kielboot2'),
+  description: z.string().max(500).optional(),
+  startDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Gebruik formaat YYYY-MM-DD').optional(),
+  endDate:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Gebruik formaat YYYY-MM-DD').optional(),
+})
+
+// ─── LES ──────────────────────────────────────────────────────────────────────
+
+export const schoolLesSchema = z.object({
+  courseId:     z.string().uuid('Ongeldig cursus ID'),
+  datum:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Gebruik formaat YYYY-MM-DD'),
+  windRichting: z.string().max(5).optional(),            // "ZW", "NNO" etc.
+  windKracht:   z.number().int().min(0).max(12).optional(),
+  studentIds:   z.array(z.string().uuid()).min(1, 'Selecteer minimaal 1 cursist'),
+})
+
+// ─── BEOORDELINGEN (bulk AMRB) ────────────────────────────────────────────────
+
+export const skillScoreEnum = z.enum(['aangeboden', 'matig', 'redelijk', 'beheerst'])
+
+export const singleAssessmentSchema = z.object({
+  skillId: z.string().uuid('Ongeldig vaardigheid ID'),
+  score:   skillScoreEnum,
+})
+
+export const bulkAssessmentSchema = z.object({
+  studentUserId: z.string().uuid('Ongeldig cursist ID'),
+  bootId:        z.string().uuid().optional().nullable(),
+  soloGevaren:   z.boolean().default(false),
+  scores:        z.array(singleAssessmentSchema).min(1, 'Geef minimaal 1 beoordeling op'),
+})
+
+// ─── LES OPMERKING ────────────────────────────────────────────────────────────
+
+export const lessonNoteSchema = z.object({
+  studentUserId: z.string().uuid('Ongeldig cursist ID'),
+  note:          z.string().min(1, 'Opmerking mag niet leeg zijn').max(1000),
+})
+
+// ─── LID TOEVOEGEN ────────────────────────────────────────────────────────────
+
+export const schoolMemberSchema = z.object({
+  email: z.string().email('Voer een geldig e-mailadres in'),
+  role:  z.enum(['instructeur', 'cursist']),
+})
+
+// ─── VLOOT BOOT ───────────────────────────────────────────────────────────────
+
+export const vlootBootSchema = z.object({
+  bootNummer: z.string().min(1, 'Bootnummer is verplicht').max(20),
+  bootType:   z.enum(['valk', 'polyvalk', 'laser', 'laser_pico', 'rs_feva', 'kajuitjacht', 'catamaran', 'anders']).optional(),
+  naam:       z.string().max(100).optional(),
+})

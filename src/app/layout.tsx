@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
+import { ThemeProvider } from '@/components/ui/ThemeProvider'
 
 export const metadata: Metadata = {
   title:       'VaarSamen — Vind jouw zeilmaatje',
@@ -31,8 +33,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="nl" className="h-full">
+    <html lang="nl" className="h-full" suppressHydrationWarning>
       <head>
+        {/* Zet theme-class vóór eerste paint — voorkomt flash */}
+        <Script src="/theme-init.js" strategy="beforeInteractive" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -42,8 +46,10 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon" />
       </head>
       <body className="min-h-full bg-surface text-on-surface">
-        <ServiceWorkerRegistration />
-        {children}
+        <ThemeProvider>
+          <ServiceWorkerRegistration />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )

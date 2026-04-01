@@ -1,6 +1,6 @@
 import {
   pgTable, uuid, text, integer, boolean, timestamp,
-  pgEnum, real, date, jsonb, varchar, uniqueIndex
+  pgEnum, real, date, jsonb, varchar, uniqueIndex, index
 } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
 
@@ -338,4 +338,263 @@ export const profilesRelations = relations(profiles, ({ one, many }) => ({
   swipeDailyCounts: many(swipeDailyCounts),
   reportsGiven:     many(reports, { relationName: 'reporter' }),
   reportsReceived:  many(reports, { relationName: 'reported' }),
+}))
+
+// ─── ZEILSCHOOL ENUMS ─────────────────────────────────────────────────────────
+
+export const skillScoreEnum = pgEnum('skill_score', [
+  'aangeboden', 'matig', 'redelijk', 'beheerst'
+])
+
+export const schoolRoleEnum = pgEnum('school_role', [
+  'eigenaar', 'instructeur', 'cursist'
+])
+
+// ─── ZEILSCHOLEN ─────────────────────────────────────────────────────────────
+
+export const sailingSchools = pgTable('sailing_schools', {
+  id:               uuid('id').defaultRandom().primaryKey(),
+  name:             text('name').notNull(),
+  slug:             text('slug').notNull().unique(),           // 'de-boet' → /school/de-boet
+  description:      text('description'),
+  straat:           text('straat'),
+  huisnummer:       text('huisnummer'),
+  postcode:         varchar('postcode', { length: 8 }),        // "2172 JX"
+  city:             text('city'),
+  website:          text('website'),
+  logoUrl:          text('logo_url'),
+  ownerUserId:      uuid('owner_user_id').notNull().references(() => users.id),
+  verhuurTarieven:  jsonb('verhuur_tarieven'),                 // VerhuurTarieven | null
+  deletedAt:        timestamp('deleted_at'),
+  createdAt:        timestamp('created_at').defaultNow(),
+  updatedAt:        timestamp('updated_at').defaultNow(),
+})
+
+// ─── SCHOOL MEMBERSHIPS ──────────────────────────────────────────────────────
+// Koppelt users aan scholen met een rol (eigenaar/instructeur/cursist)
+
+export const schoolMemberships = pgTable('school_memberships', {
+  id:        uuid('id').defaultRandom().primaryKey(),
+  schoolId:  uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  userId:    uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role:      schoolRoleEnum('role').notNull(),
+  joinedAt:  timestamp('joined_at').defaultNow(),
+  deletedAt: timestamp('deleted_at'),
+}, (t) => ({
+  uniq:           uniqueIndex('school_memberships_school_user_uniq').on(t.schoolId, t.userId),
+  schoolDeletedIdx: index('school_memberships_school_deleted_idx').on(t.schoolId, t.deletedAt),
+}))
+
+// ─── UITNODIGINGEN ───────────────────────────────────────────────────────────
+// Herbruikbare uitnodigingslink per school + rol
+// token is een korte random string (8 tekens) die in de URL komt
+
+export const schoolInvites = pgTable('school_invites', {
+  id:        uuid('id').defaultRandom().primaryKey(),
+  schoolId:  uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  token:     text('token').notNull(),
+  role:      schoolRoleEnum('role').notNull().default('cursist'),
+  label:     text('label'),              // optioneel: "Kielboot II 2026"
+  maxUses:   integer('max_uses'),        // null = onbeperkt
+  usedCount: integer('used_count').default(0).notNull(),
+  expiresAt: timestamp('expires_at'),    // null = nooit
+  createdBy: uuid('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  deletedAt: timestamp('deleted_at'),
+}, (t) => ({
+  tokenUniq: uniqueIndex('school_invites_token_uniq').on(t.token),
+}))
+
+// ─── CURSUSSEN ───────────────────────────────────────────────────────────────
+
+export const schoolCourses = pgTable('school_courses', {
+  id:          uuid('id').defaultRandom().primaryKey(),
+  schoolId:    uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  name:        text('name').notNull(),                    // "Kielboot II Praktijk 2026"
+  cwoLevel:    cwoLevelEnum('cwo_level').default('cwo_kielboot2'),
+  description: text('description'),
+  startDate:   date('start_date'),
+  endDate:     date('end_date'),
+  deletedAt:   timestamp('deleted_at'),
+  createdAt:   timestamp('created_at').defaultNow(),
+  updatedAt:   timestamp('updated_at').defaultNow(),
+})
+
+// ─── VLOOT ───────────────────────────────────────────────────────────────────
+// Schoolboten (bootnummer voor in de vorderingenstaat)
+
+export const schoolFleet = pgTable('school_fleet', {
+  id:         uuid('id').defaultRandom().primaryKey(),
+  schoolId:   uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  bootNummer: text('boot_nummer').notNull(),              // "1", "2", "Valk-3"
+  bootType:   boatTypeEnum('boot_type'),
+  naam:       text('naam'),
+  deletedAt:  timestamp('deleted_at'),
+  createdAt:  timestamp('created_at').defaultNow(),
+})
+
+// ─── LESSEN ──────────────────────────────────────────────────────────────────
+// Eén lesdag per cursus (datum + wind + instructeur)
+
+export const schoolLessons = pgTable('school_lessons', {
+  id:            uuid('id').defaultRandom().primaryKey(),
+  courseId:      uuid('course_id').notNull().references(() => schoolCourses.id, { onDelete: 'cascade' }),
+  schoolId:      uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  datum:         date('datum').notNull(),
+  windRichting:  varchar('wind_richting', { length: 5 }), // "ZW", "NNO"
+  windKracht:    integer('wind_kracht'),                  // Beaufort 1-12
+  instructeurId: uuid('instructeur_id').references(() => users.id),
+  deletedAt:     timestamp('deleted_at'),
+  createdAt:     timestamp('created_at').defaultNow(),
+  updatedAt:     timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  courseIdx: index('school_lessons_course_id_idx').on(t.courseId),
+  schoolIdx: index('school_lessons_school_id_idx').on(t.schoolId),
+}))
+
+// ─── CURSISTEN PER LES ───────────────────────────────────────────────────────
+// Welke cursisten waren aanwezig + met welke boot + solo gevaren
+
+export const lessonStudents = pgTable('lesson_students', {
+  id:            uuid('id').defaultRandom().primaryKey(),
+  lessonId:      uuid('lesson_id').notNull().references(() => schoolLessons.id, { onDelete: 'cascade' }),
+  studentUserId: uuid('student_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  bootId:        uuid('boot_id').references(() => schoolFleet.id),
+  soloGevaren:   boolean('solo_gevaren').default(false),
+  createdAt:     timestamp('created_at').defaultNow(),
+}, (t) => ({
+  uniq:      uniqueIndex('lesson_students_lesson_student_uniq').on(t.lessonId, t.studentUserId),
+  lessonIdx: index('lesson_students_lesson_id_idx').on(t.lessonId),
+}))
+
+// ─── VAARDIGHEID DEFINITIES ──────────────────────────────────────────────────
+// Seeddata: vaardigheden per CWO niveau (bijv. KB2 = 18 vaardigheden)
+
+export const skillDefinitions = pgTable('skill_definitions', {
+  id:        uuid('id').defaultRandom().primaryKey(),
+  cwoLevel:  cwoLevelEnum('cwo_level').notNull(),
+  code:      varchar('code', { length: 20 }).notNull(),  // 'KB2-01', 'KB2-02' …
+  naam:      text('naam').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+}, (t) => ({
+  uniq: uniqueIndex('skill_definitions_cwo_code_uniq').on(t.cwoLevel, t.code),
+}))
+
+// ─── VAARDIGHEID BEOORDELINGEN ───────────────────────────────────────────────
+// AMRB score per cursist, per vaardigheid, per les
+// Uniek constraint → upsert-safe (instructeur kan score aanpassen)
+
+export const skillAssessments = pgTable('skill_assessments', {
+  id:            uuid('id').defaultRandom().primaryKey(),
+  lessonId:      uuid('lesson_id').notNull().references(() => schoolLessons.id, { onDelete: 'cascade' }),
+  studentUserId: uuid('student_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  skillId:       uuid('skill_id').notNull().references(() => skillDefinitions.id),
+  score:         skillScoreEnum('score').notNull(),
+  instructeurId: uuid('instructeur_id').notNull().references(() => users.id),
+  createdAt:     timestamp('created_at').defaultNow(),
+  updatedAt:     timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  uniq:       uniqueIndex('skill_assessments_lesson_student_skill_uniq').on(t.lessonId, t.studentUserId, t.skillId),
+  lessonIdx:  index('skill_assessments_lesson_id_idx').on(t.lessonId),
+  studentIdx: index('skill_assessments_student_id_idx').on(t.studentUserId),
+}))
+
+// ─── LES OPMERKINGEN ─────────────────────────────────────────────────────────
+// Vrije tekst per cursist per les (de "Opmerkingen" kolom)
+
+export const lessonNotes = pgTable('lesson_notes', {
+  id:            uuid('id').defaultRandom().primaryKey(),
+  lessonId:      uuid('lesson_id').notNull().references(() => schoolLessons.id, { onDelete: 'cascade' }),
+  studentUserId: uuid('student_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  note:          text('note').notNull(),
+  instructeurId: uuid('instructeur_id').notNull().references(() => users.id),
+  createdAt:     timestamp('created_at').defaultNow(),
+  updatedAt:     timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  uniq: uniqueIndex('lesson_notes_lesson_student_uniq').on(t.lessonId, t.studentUserId),
+}))
+
+// ─── BOOTVERHUUR ─────────────────────────────────────────────────────────────
+// Cursisten kunnen schoolboten aanvragen buiten lessen om
+// Eigenaar/instructeur kan goedkeuren of afwijzen
+
+export const rentalStatusEnum = pgEnum('rental_status', [
+  'aangevraagd', 'goedgekeurd', 'afgewezen', 'geannuleerd',
+])
+
+export const boatRentals = pgTable('boat_rentals', {
+  id:         uuid('id').defaultRandom().primaryKey(),
+  schoolId:   uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  bootId:     uuid('boot_id').notNull().references(() => schoolFleet.id, { onDelete: 'cascade' }),
+  userId:     uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  datum:      date('datum').notNull(),
+  startTijd:  varchar('start_tijd', { length: 5 }).notNull(),  // "09:00"
+  eindTijd:   varchar('eind_tijd',  { length: 5 }).notNull(),  // "17:00"
+  opmerking:  text('opmerking'),    // van de aanvrager
+  reactie:    text('reactie'),      // van eigenaar/instructeur
+  status:     rentalStatusEnum('status').default('aangevraagd').notNull(),
+  beoordeeldDoor: uuid('beoordeeld_door').references(() => users.id),
+  createdAt:  timestamp('created_at').defaultNow(),
+  updatedAt:  timestamp('updated_at').defaultNow(),
+  deletedAt:  timestamp('deleted_at'),
+}, (t) => ({
+  // Geen dubbele aanvraag voor dezelfde boot op dezelfde dag door dezelfde persoon
+  uniq: uniqueIndex('boat_rentals_boot_user_datum_uniq').on(t.bootId, t.userId, t.datum),
+}))
+
+// ─── SCHOOL RELATIONS ─────────────────────────────────────────────────────────
+
+export const sailingSchoolsRelations = relations(sailingSchools, ({ one, many }) => ({
+  owner:       one(users,         { fields: [sailingSchools.ownerUserId], references: [users.id] }),
+  memberships: many(schoolMemberships),
+  courses:     many(schoolCourses),
+  fleet:       many(schoolFleet),
+  lessons:     many(schoolLessons),
+}))
+
+export const schoolMembershipsRelations = relations(schoolMemberships, ({ one }) => ({
+  school: one(sailingSchools, { fields: [schoolMemberships.schoolId], references: [sailingSchools.id] }),
+  user:   one(users,          { fields: [schoolMemberships.userId],   references: [users.id] }),
+}))
+
+export const schoolCoursesRelations = relations(schoolCourses, ({ one, many }) => ({
+  school:  one(sailingSchools, { fields: [schoolCourses.schoolId], references: [sailingSchools.id] }),
+  lessons: many(schoolLessons),
+}))
+
+export const schoolFleetRelations = relations(schoolFleet, ({ one, many }) => ({
+  school:         one(sailingSchools, { fields: [schoolFleet.schoolId], references: [sailingSchools.id] }),
+  lessonStudents: many(lessonStudents),
+}))
+
+export const schoolLessonsRelations = relations(schoolLessons, ({ one, many }) => ({
+  course:      one(schoolCourses,  { fields: [schoolLessons.courseId],      references: [schoolCourses.id] }),
+  school:      one(sailingSchools, { fields: [schoolLessons.schoolId],      references: [sailingSchools.id] }),
+  instructeur: one(users,          { fields: [schoolLessons.instructeurId], references: [users.id] }),
+  students:    many(lessonStudents),
+  assessments: many(skillAssessments),
+  notes:       many(lessonNotes),
+}))
+
+export const lessonStudentsRelations = relations(lessonStudents, ({ one }) => ({
+  lesson:  one(schoolLessons, { fields: [lessonStudents.lessonId],      references: [schoolLessons.id] }),
+  student: one(users,         { fields: [lessonStudents.studentUserId], references: [users.id] }),
+  boot:    one(schoolFleet,   { fields: [lessonStudents.bootId],        references: [schoolFleet.id] }),
+}))
+
+export const skillDefinitionsRelations = relations(skillDefinitions, ({ many }) => ({
+  assessments: many(skillAssessments),
+}))
+
+export const skillAssessmentsRelations = relations(skillAssessments, ({ one }) => ({
+  lesson:      one(schoolLessons,    { fields: [skillAssessments.lessonId],      references: [schoolLessons.id] }),
+  skill:       one(skillDefinitions, { fields: [skillAssessments.skillId],       references: [skillDefinitions.id] }),
+  student:     one(users,            { fields: [skillAssessments.studentUserId], references: [users.id], relationName: 'assessment_student' }),
+  instructeur: one(users,            { fields: [skillAssessments.instructeurId], references: [users.id], relationName: 'assessment_instructeur' }),
+}))
+
+export const lessonNotesRelations = relations(lessonNotes, ({ one }) => ({
+  lesson:      one(schoolLessons, { fields: [lessonNotes.lessonId],      references: [schoolLessons.id] }),
+  student:     one(users,         { fields: [lessonNotes.studentUserId], references: [users.id], relationName: 'note_student' }),
+  instructeur: one(users,         { fields: [lessonNotes.instructeurId], references: [users.id], relationName: 'note_instructeur' }),
 }))

@@ -1,8 +1,9 @@
+import { after } from 'next/server'
 import { auth } from '@/lib/auth'
 import { messageSchema } from '@/lib/validations'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
 import { getMatchMessages, markMessagesAsRead } from '@/lib/db/queries/matches'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { pusherServer, channels, events } from '@/lib/pusher'
 import { db } from '@/lib/db'
 import { messages, matches } from '@/lib/db/schema'
@@ -45,11 +46,7 @@ export async function POST(
   if (!session?.user?.id) return Response.json({ error: 'Niet ingelogd' }, { status: 401 })
 
   // Rate limiting per gebruiker
-  const { allowed } = checkRateLimit(
-    `message:${session.user.id}`,
-    RATE_LIMITS.message.max,
-    RATE_LIMITS.message.windowMs
-  )
+  const { allowed } = checkRateLimit('message', session.user.id)
   if (!allowed) return Response.json({ error: 'Te veel berichten' }, { status: 429 })
 
   const { matchId } = await params
@@ -77,12 +74,10 @@ export async function POST(
     .values({ matchId, senderId: profile.id, content: parsed.data.content })
     .returning()
 
-  // Realtime: stuur naar match channel
-  await pusherServer.trigger(
-    channels.match(matchId),
-    events.newMessage,
-    { message }
-  )
+  // Realtime: stuur naar match channel na response (blokkeert response niet)
+  after(async () => {
+    await pusherServer.trigger(channels.match(matchId), events.newMessage, { message })
+  })
 
   return Response.json({ message }, { status: 201 })
 }

@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
 import { db } from '@/lib/db'
@@ -27,5 +28,6 @@ export async function POST() {
     path:     '/',
   })
 
+  revalidateTag('profiles', 'max')
   return Response.json({ success: true })
 }

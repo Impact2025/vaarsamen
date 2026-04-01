@@ -1,17 +1,16 @@
+import { after } from 'next/server'
 import { auth } from '@/lib/auth'
+import { logger } from '@/lib/logger'
 import { swipeSchema } from '@/lib/validations'
 import { recordSwipeAtomic } from '@/lib/db/queries/swipes'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { pusherServer, channels, events } from '@/lib/pusher'
-import { db } from '@/lib/db'
-import { profiles } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
 
 export async function POST(req: Request) {
   // Rate limiting op IP
   const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
-  const { allowed } = checkRateLimit(`swipe:${ip}`, RATE_LIMITS.swipe.max, RATE_LIMITS.swipe.windowMs)
+  const { allowed } = checkRateLimit('swipe', ip)
   if (!allowed) {
     return Response.json({ error: 'Te veel verzoeken, probeer het later opnieuw' }, { status: 429 })
   }
@@ -46,26 +45,15 @@ export async function POST(req: Request) {
   try {
     const result = await recordSwipeAtomic(profile.id, swipedId, action, isPremium)
 
-    // Als het een match is: Pusher notificatie naar beide gebruikers
+    // Als het een match is: Pusher notificatie na response (blokkeert response niet)
     if (result.matchId) {
-      const [swipedProfile] = await db
-        .select({ id: profiles.id })
-        .from(profiles)
-        .where(eq(profiles.id, swipedId))
-        .limit(1)
-
-      await Promise.all([
-        pusherServer.trigger(
-          channels.user(profile.id),
-          events.newMatch,
-          { matchId: result.matchId }
-        ),
-        pusherServer.trigger(
-          channels.user(swipedId),
-          events.newMatch,
-          { matchId: result.matchId }
-        ),
-      ])
+      const matchId = result.matchId
+      after(async () => {
+        await Promise.all([
+          pusherServer.trigger(channels.user(profile.id), events.newMatch, { matchId }),
+          pusherServer.trigger(channels.user(swipedId),   events.newMatch, { matchId }),
+        ])
+      })
     }
 
     return Response.json({
@@ -81,7 +69,7 @@ export async function POST(req: Request) {
         limitReached: true,
       }, { status: 429 })
     }
-    console.error('Swipe error:', err)
+    logger.error('Swipe mislukt', { userId: session.user.id, err: String(err) })
     return Response.json({ error: 'Er ging iets mis' }, { status: 500 })
   }
 }

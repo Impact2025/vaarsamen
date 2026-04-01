@@ -14,6 +14,116 @@ const db  = drizzle(sql, { schema })
 // ─── DEMO PROFIELEN ───────────────────────────────────────────────────────────
 
 const demoProfiles = [
+  // ── Extra zeilers (nieuw) ──────────────────────────────────────────────────
+  {
+    email:       'kees.vanderhoeven@demo.vaarsamen.nl',
+    displayName: 'Kees van der Hoeven',
+    age:         48,
+    city:        'Volendam',
+    homePort:    'Jachthaven Volendam',
+    bio:         'Vissersbloed maar zeilerhart. Al 20 jaar op het IJsselmeer. Heb een Finnjol voor de sportieve vaart en een kajuitjacht voor weekendtripjes. Gezelligheid boven alles, maar ik hou ook van een goed zeil.',
+    cwoLevel:    'cwo3' as const,
+    cwoVerified: true,
+    sailingRole: 'schipper' as const,
+    lookingFor:  'weekend' as const,
+    sailingAreas: ['ijsselmeer', 'amsterdam', 'friesland'],
+    skillTags:   ['Navigatie', 'Ankeren', 'Marifoon', 'Nachtvaren'],
+    photoUrl:    'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=400&h=500&fit=crop',
+    boatType:    'kajuitjacht' as const,
+    boatName:    'IJsvogel',
+    isFeatured:  true,
+  },
+  {
+    email:       'nora.linden@demo.vaarsamen.nl',
+    displayName: 'Nora van der Linden',
+    age:         28,
+    city:        'Amsterdam',
+    homePort:    'ANWB Jachthaven Sixhaven',
+    bio:         'Na mijn CWO2 ben ik aan het werken aan CWO3. Zoek een schipper die me wil meenemen en laten leren. Ik woon in Amsterdam, ben heel flexibel in weekenden en hou van vroeg opstaan voor een goede wind.',
+    cwoLevel:    'cwo2' as const,
+    cwoVerified: true,
+    sailingRole: 'bemanning' as const,
+    lookingFor:  'dagje_varen' as const,
+    sailingAreas: ['amsterdam', 'ijsselmeer', 'randmeren'],
+    skillTags:   ['Trimmen', 'Navigatie', 'Regatta'],
+    photoUrl:    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=500&fit=crop',
+    boatType:    null,
+    boatName:    null,
+    isFeatured:  true,
+  },
+  {
+    email:       'bas.dekker@demo.vaarsamen.nl',
+    displayName: 'Bas Dekker',
+    age:         33,
+    city:        'Almere',
+    homePort:    'Almere Haven',
+    bio:         'Regattazeiler in de weekenden, toervaarder in de vakantie. Heb een Laser voor solo-training en zoek maatjes voor de Randmeren en het IJsselmeer. Werk door de week, heel vrij in de weekenden.',
+    cwoLevel:    'cwo2' as const,
+    cwoVerified: false,
+    sailingRole: 'beide' as const,
+    lookingFor:  'regatta' as const,
+    sailingAreas: ['randmeren', 'ijsselmeer', 'amsterdam'],
+    skillTags:   ['Regatta', 'Spinnaker', 'Trimmen'],
+    photoUrl:    'https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=400&h=500&fit=crop',
+    boatType:    'laser' as const,
+    boatName:    null,
+    isFeatured:  false,
+  },
+  {
+    email:       'inge.vanwijk@demo.vaarsamen.nl',
+    displayName: 'Inge van Wijk',
+    age:         52,
+    city:        'Leiden',
+    homePort:    'Kagerplassen Kaag',
+    bio:         'Zeil al mijn hele leven. Mijn kinderen zijn het huis uit dus nu meer tijd dan ooit. Heb een Daysailer op de Kagerplassen en zoek gezellig vaarmaatje voor dagjes en weekendjes. Koffie en verse koek aan boord is een belofte.',
+    cwoLevel:    'cwo_kielboot1' as const,
+    cwoVerified: true,
+    sailingRole: 'schipper' as const,
+    lookingFor:  'dagje_varen' as const,
+    sailingAreas: ['randmeren', 'amsterdam'],
+    skillTags:   ['Toervaren', 'Ankeren', 'Marifoon'],
+    photoUrl:    'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=400&h=500&fit=crop',
+    boatType:    'kajuitjacht' as const,
+    boatName:    'Zomerbries',
+    isFeatured:  false,
+  },
+  {
+    email:       'dave.visser@demo.vaarsamen.nl',
+    displayName: 'Dave Visser',
+    age:         25,
+    city:        'Rotterdam',
+    homePort:    'Kralingse Plas',
+    bio:         'Student en fanatiek zeiler. CWO2 en nu aan het kijken naar kielboot. Zoek iemand met een boot die me wil laten meevaren en leren. Ben sterk, snel en niet bang voor kou. Wil graag richting Zeeland of Goeree.',
+    cwoLevel:    'cwo2' as const,
+    cwoVerified: false,
+    sailingRole: 'bemanning' as const,
+    lookingFor:  'zeilvakantie' as const,
+    sailingAreas: ['zeeland', 'randmeren'],
+    skillTags:   ['Regatta', 'Trapeze', 'Spinnaker'],
+    photoUrl:    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=500&fit=crop',
+    boatType:    null,
+    boatName:    null,
+    isFeatured:  true,
+  },
+  {
+    email:       'marloes.berg@demo.vaarsamen.nl',
+    displayName: 'Marloes Berg',
+    age:         39,
+    city:        'Hoorn',
+    homePort:    'Hoorn Buitenhaven',
+    bio:         'Haarscherp op de wind en gezellig aan de wal. Ik heb een Valk in Hoorn en vaar zowel wedstrijden als toertochten op het IJsselmeer. Op zoek naar een goede bemanningslid of andere schipper voor uitwisseling. Je hoeft niet perfect te zijn, maar je moet wel willen leren.',
+    cwoLevel:    'cwo3' as const,
+    cwoVerified: true,
+    sailingRole: 'schipper' as const,
+    lookingFor:  'alles' as const,
+    sailingAreas: ['ijsselmeer', 'friesland', 'waddenzee'],
+    skillTags:   ['Regatta', 'Trimmen', 'Navigatie', 'Marifoon'],
+    photoUrl:    'https://images.unsplash.com/photo-1504703395950-b89145a5425b?w=400&h=500&fit=crop',
+    boatType:    'valk' as const,
+    boatName:    'Noordenwind',
+    isFeatured:  true,
+  },
+  // ── Originele zeilers ──────────────────────────────────────────────────────
   {
     email:       'pieter.dejong@demo.vaarsamen.nl',
     displayName: 'Pieter de Jong',
@@ -279,7 +389,12 @@ async function seed() {
 
       console.log(`  ✓ ${demo.displayName}`)
     } else {
-      console.log(`  ℹ ${demo.displayName} bestaat al`)
+      // Zorg dat bestaande profielen zichtbaar en onboarded zijn
+      ;[profile] = await db.update(schema.profiles)
+        .set({ isOnboarded: true, isVisible: true, isFeatured: demo.isFeatured, deletedAt: null })
+        .where(eq(schema.profiles.id, profile.id))
+        .returning()
+      console.log(`  ↺ ${demo.displayName} bijgewerkt (zichtbaar gemaakt)`)
     }
 
     createdProfiles.push(profile)

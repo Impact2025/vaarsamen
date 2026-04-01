@@ -12,7 +12,8 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth
 
   // Publieke routes: altijd doorlaten
-  const isPublicPage = ['/', '/login'].includes(pathname)
+  const isPublicPage = ['/', '/login', '/school/login', '/demo'].includes(pathname)
+    || pathname.startsWith('/school/join/')
   const isPublicApi  = PUBLIC_API_ROUTES.some(r => pathname.startsWith(r))
   const isStaticFile = pathname.startsWith('/_next')
     || pathname.startsWith('/favicon')
@@ -38,11 +39,15 @@ export default auth((req) => {
   }
 
   // Onboarding check via cookie (gezet door de onboarding API route)
-  // De volledige check gebeurt in de pagina zelf via DB-query
+  // Alleen van toepassing op hoofd-app routes die een compleet profiel vereisen
+  const MAIN_APP_PREFIXES = [
+    '/ontdekken', '/berichten', '/matches', '/profiel', '/tochten', '/mijn-vorderingen',
+  ]
   const isOnboardingRoute = pathname.startsWith('/onboarding')
+  const isMainAppRoute    = MAIN_APP_PREFIXES.some(p => pathname.startsWith(p))
   const onboardedCookie   = req.cookies.get('vs_onboarded')?.value
 
-  if (onboardedCookie === 'false' && !isOnboardingRoute) {
+  if (onboardedCookie === 'false' && isMainAppRoute) {
     return NextResponse.redirect(new URL('/onboarding', req.nextUrl))
   }
 

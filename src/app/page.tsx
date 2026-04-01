@@ -1,8 +1,12 @@
 import Link from 'next/link'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 overflow-hidden">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       {/* Achtergrond glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />

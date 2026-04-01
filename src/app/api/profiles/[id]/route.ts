@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { profileUpdateSchema } from '@/lib/validations'
 import { getProfileById, getProfileByUserId } from '@/lib/db/queries/profiles'
@@ -46,5 +47,6 @@ export async function PATCH(
     .where(and(eq(profiles.id, id), isNull(profiles.deletedAt)))
     .returning()
 
+  revalidateTag('profiles', 'max')
   return Response.json({ profile: updated })
 }

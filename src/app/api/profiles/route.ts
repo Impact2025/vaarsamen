@@ -1,3 +1,4 @@
+import { revalidateTag } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { profileCreateSchema } from '@/lib/validations'
 import { getDiscoveryFeed, getProfileByUserId } from '@/lib/db/queries/profiles'
@@ -72,5 +73,6 @@ export async function POST(req: Request) {
     })
     .returning()
 
+  revalidateTag('profiles', 'max')
   return Response.json({ profile }, { status: 201 })
 }

@@ -1,13 +1,15 @@
-import NextAuth from 'next-auth'
+import NextAuth, { type NextAuthConfig } from 'next-auth'
 import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import Google from 'next-auth/providers/google'
 import Resend from 'next-auth/providers/resend'
 import Credentials from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
-import { users, accounts, sessions, verificationTokens } from '@/lib/db/schema'
+import { users, accounts, sessions, verificationTokens, profiles } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
 
-const providers = []
+// Expliciet getypeerd zodat NextAuth het juiste type verwacht — geen as any casts nodig
+const providers: NextAuthConfig['providers'] = []
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   providers.push(Google({
@@ -24,7 +26,8 @@ if (process.env.RESEND_API_KEY) {
 }
 
 // Directe email-login in development (geen wachtwoord nodig)
-if (process.env.NODE_ENV !== 'production' || !!process.env.ALLOW_DEV_LOGIN) {
+// NOOIT inschakelen via env var in productie — gebruik NODE_ENV=development op staging
+if (process.env.NODE_ENV !== 'production') {
   providers.push(
     Credentials({
       id:   'dev-login',
@@ -34,18 +37,34 @@ if (process.env.NODE_ENV !== 'production' || !!process.env.ALLOW_DEV_LOGIN) {
       },
       async authorize(credentials) {
         if (!credentials?.email) return null
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, credentials.email as string))
-          .limit(1)
+        const email = credentials.email as string
+        let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
+        if (!user) {
+          const [created] = await db.insert(users).values({ email, name: email.split('@')[0] }).returning()
+          user = created
+        }
+        if (user) {
+          // Dev: maak een dev-profiel aan als dat nog niet bestaat zodat onboarding overgeslagen wordt
+          const [existing] = await db.select().from(profiles).where(eq(profiles.userId, user.id)).limit(1)
+          if (!existing) {
+            await db.insert(profiles).values({
+              userId:      user.id,
+              displayName: user.name ?? email.split('@')[0],
+              cwoLevel:    'cwo3',
+              sailingRole: 'beide',
+              lookingFor:  'alles',
+              sailingAreas: ['ijsselmeer', 'friese_meren'],
+              isOnboarded: true,
+            })
+          }
+        }
         return user ? { ...user, isAdmin: user.isAdmin ?? false } : null
       },
-    }) as any
+    })
   )
 }
 
-// Demo-login: werkt in productie wanneer DEMO_EMAIL is ingesteld
+// Demo-login: werkt in productie wanneer DEMO_EMAIL is ingesteld (legacy, single user)
 const demoEmail = process.env.DEMO_EMAIL
 if (demoEmail) {
   providers.push(
@@ -58,9 +77,29 @@ if (demoEmail) {
         if (!userId) return null
         return { id: userId, email: demoEmail, name: 'Demo', image: null }
       },
-    }) as any
+    })
   )
 }
+
+// Multi-demo: meerdere demo accounts (instructeur + cursist)
+// Activeer via ALLOW_DEMO_USERS=true in .env.local
+if (process.env.ALLOW_DEMO_USERS) {
+  providers.push(
+    Credentials({
+      id:   'demo-user',
+      name: 'Demo Gebruiker',
+      credentials: {
+        userId: { label: 'User ID', type: 'text' },
+      },
+      async authorize(credentials) {
+        const account = DEMO_ACCOUNTS.find(a => a.id === credentials?.userId)
+        if (!account) return null
+        return { id: account.id, email: account.email, name: account.name, image: null }
+      },
+    })
+  )
+}
+
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -76,30 +115,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: 'jwt',
   },
   callbacks: {
-    async session({ session, token, user }) {
-      // JWT strategy (dev): haal user ID uit token
-      if (token?.sub) {
-        session.user.id = token.sub
-        // Haal actuele user data op
-        const [dbUser] = await db.select().from(users).where(eq(users.id, token.sub)).limit(1)
-        if (dbUser) {
-          session.user.email   = dbUser.email
-          session.user.name    = dbUser.name ?? session.user.name
-          session.user.image   = dbUser.image ?? session.user.image
-          session.user.isAdmin = dbUser.isAdmin ?? false
-        }
+    // Sla isAdmin op in het JWT token bij login — zo geen DB-query meer per request
+    async jwt({ token, user }) {
+      if (user) {
+        token.sub     = user.id
+        token.isAdmin = (user as any).isAdmin ?? false
       }
-      // Database strategy (prod)
-      if (user?.id) {
-        session.user.id = user.id
-        const [dbUser] = await db.select().from(users).where(eq(users.id, user.id)).limit(1)
-        if (dbUser) session.user.isAdmin = dbUser.isAdmin ?? false
+      return token
+    },
+    // Lees uitsluitend uit het token — nul DB-queries
+    async session({ session, token }) {
+      if (token?.sub) {
+        session.user.id      = token.sub
+        session.user.isAdmin = (token.isAdmin as boolean) ?? false
       }
       return session
-    },
-    async jwt({ token, user }) {
-      if (user) token.sub = user.id
-      return token
     },
   },
   pages: {
