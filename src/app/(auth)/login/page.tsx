@@ -1,7 +1,7 @@
 import { signIn } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
+import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
 
 export default async function LoginPage({
   searchParams,
@@ -14,8 +14,9 @@ export default async function LoginPage({
   const { callbackUrl, error } = await searchParams
   const redirectTo = callbackUrl ?? '/ontdekken'
 
-  const isDev         = process.env.NODE_ENV !== 'production' || !!process.env.ALLOW_DEV_LOGIN
-  const isDemoEnabled = !!process.env.DEMO_EMAIL
+  const isDev              = process.env.NODE_ENV !== 'production' || !!process.env.ALLOW_DEV_LOGIN
+  const isDemoEnabled      = !!process.env.DEMO_EMAIL
+  const isMultiDemoEnabled = !!process.env.ALLOW_DEMO_USERS
 
   return (
     <main className="min-h-screen bg-surface flex flex-col items-center justify-center p-6">
@@ -157,6 +158,45 @@ export default async function LoginPage({
               Probeer met demo account
             </button>
           </form>
+        )}
+
+        {/* Multi-demo: instructeur + cursist knoppen */}
+        {isMultiDemoEnabled && (
+          <div className="space-y-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <form
+                key={account.id}
+                action={async () => {
+                  'use server'
+                  try {
+                    const dest = account.id === DEMO_ACCOUNTS[0].id
+                      ? `/school/${DEMO_SCHOOL_ID}/dashboard`
+                      : `/mijn-vorderingen`
+                    await signIn('demo-user', { userId: account.id, redirectTo: dest })
+                  } catch (e: unknown) {
+                    if (e instanceof Error && e.message === 'NEXT_REDIRECT') throw e
+                    if ((e as { digest?: string })?.digest?.startsWith('NEXT_REDIRECT')) throw e
+                    redirect('/login?error=demo')
+                  }
+                }}
+              >
+                <button
+                  type="submit"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 px-6
+                             glass-card border border-primary/20 rounded-full
+                             text-primary font-label font-bold text-sm
+                             hover:border-primary/40 active:scale-95 transition-all
+                             focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <span className="material-symbols-outlined text-base" aria-hidden="true"
+                        style={{ fontVariationSettings: "'FILL' 1" }}>
+                    {account.icon}
+                  </span>
+                  Inloggen als {account.label}
+                </button>
+              </form>
+            ))}
+          </div>
         )}
 
         {/* Dev-only: directe login zonder email */}
