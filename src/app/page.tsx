@@ -85,7 +85,15 @@ export default function LandingPage() {
 
         {/* Social proof */}
         <p className="font-label text-xs text-on-surface-variant">
-          Al <strong className="text-primary">500+</strong> zeilers aan boord &bull; Gratis beginnen
+          Innovatie met een sociaal hart &mdash;{' '}
+          <a
+            href="https://www.weareimpact.nl/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            WeAreImpact
+          </a>
         </p>
       </div>
     </main>
