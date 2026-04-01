@@ -35,7 +35,14 @@ export default auth((req) => {
 
   // App routes: redirect naar login als niet ingelogd
   if (!isLoggedIn) {
-    return NextResponse.redirect(new URL('/login', req.nextUrl))
+    const loginUrl = new URL('/login', req.nextUrl)
+    loginUrl.searchParams.set('callbackUrl', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // Admin routes: redirect naar home als niet admin
+  if (pathname.startsWith('/admin') && !req.auth?.user?.isAdmin) {
+    return NextResponse.redirect(new URL('/', req.nextUrl))
   }
 
   // Onboarding check via cookie (gezet door de onboarding API route)
