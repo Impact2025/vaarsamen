@@ -4,8 +4,9 @@ import type { DefaultSession } from 'next-auth'
 declare module 'next-auth' {
   interface Session {
     user: {
-      id:      string
-      isAdmin: boolean
+      id:          string
+      isAdmin:     boolean
+      isOnboarded: boolean
     } & DefaultSession['user']
   }
   interface User {
@@ -15,6 +16,7 @@ declare module 'next-auth' {
 
 declare module 'next-auth/jwt' {
   interface JWT {
-    isAdmin?: boolean
+    isAdmin?:     boolean
+    isOnboarded?: boolean
   }
 }

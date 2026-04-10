@@ -12,7 +12,8 @@ export default async function LoginPage({
   if (session) redirect('/ontdekken')
 
   const { callbackUrl, error } = await searchParams
-  const redirectTo = callbackUrl ?? '/ontdekken'
+  const redirectTo    = callbackUrl ?? '/ontdekken'
+  const isRegistering = callbackUrl === '/onboarding'
 
   const isDev              = process.env.NODE_ENV !== 'production' || !!process.env.ALLOW_DEV_LOGIN
   const isDemoEnabled      = !!process.env.DEMO_EMAIL
@@ -35,10 +36,12 @@ export default async function LoginPage({
             </div>
           </div>
           <h1 className="font-headline font-black text-3xl text-on-surface">
-            Welkom terug
+            {isRegistering ? 'Maak een account' : 'Welkom terug'}
           </h1>
           <p className="font-body text-on-surface-variant">
-            Log in om verder te gaan met VaarSamen
+            {isRegistering
+              ? 'Vind jouw zeilmaatje in een paar minuten'
+              : 'Log in om verder te gaan met VaarSamen'}
           </p>
         </div>
 
@@ -112,7 +115,7 @@ export default async function LoginPage({
                          active:scale-95 transition-all
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              Stuur inloglink
+              {isRegistering ? 'Stuur registratielink' : 'Stuur inloglink'}
             </button>
           </form>
         </div>

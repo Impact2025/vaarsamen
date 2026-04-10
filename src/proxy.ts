@@ -45,20 +45,24 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/', req.nextUrl))
   }
 
-  // Onboarding check via cookie (gezet door de onboarding API route)
-  // Alleen van toepassing op hoofd-app routes die een compleet profiel vereisen
+  // Onboarding check: JWT-token (gezet bij login) + cookie (gezet na afronden onboarding)
+  // JWT is de bron bij login; cookie is actueel na onboarding in dezelfde sessie.
+  // Gecombineerd zodat nieuwe gebruikers (geen cookie) én cookie-loze terugkomers goed worden afgehandeld.
   const MAIN_APP_PREFIXES = [
     '/ontdekken', '/berichten', '/matches', '/profiel', '/tochten', '/mijn-vorderingen',
   ]
   const isOnboardingRoute = pathname.startsWith('/onboarding')
   const isMainAppRoute    = MAIN_APP_PREFIXES.some(p => pathname.startsWith(p))
-  const onboardedCookie   = req.cookies.get('vs_onboarded')?.value
 
-  if (onboardedCookie === 'false' && isMainAppRoute) {
+  const jwtOnboarded    = (req.auth?.user as { isOnboarded?: boolean })?.isOnboarded === true
+  const cookieOnboarded = req.cookies.get('vs_onboarded')?.value === 'true'
+  const isOnboarded     = jwtOnboarded || cookieOnboarded
+
+  if (!isOnboarded && isMainAppRoute) {
     return NextResponse.redirect(new URL('/onboarding', req.nextUrl))
   }
 
-  if (onboardedCookie === 'true' && isOnboardingRoute) {
+  if (isOnboarded && isOnboardingRoute) {
     return NextResponse.redirect(new URL('/ontdekken', req.nextUrl))
   }
 

@@ -115,19 +115,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: 'jwt',
   },
   callbacks: {
-    // Sla isAdmin op in het JWT token bij login — zo geen DB-query meer per request
+    // Sla isAdmin + isOnboarded op in het JWT token bij login
+    // isOnboarded: één DB-query per login, daarna cookie-gedreven in de middleware
     async jwt({ token, user }) {
       if (user) {
         token.sub     = user.id
         token.isAdmin = (user as any).isAdmin ?? false
+        const [profile] = await db
+          .select({ isOnboarded: profiles.isOnboarded })
+          .from(profiles)
+          .where(eq(profiles.userId, user.id!))
+          .limit(1)
+        token.isOnboarded = profile?.isOnboarded ?? false
       }
       return token
     },
-    // Lees uitsluitend uit het token — nul DB-queries
+    // Lees uitsluitend uit het token — nul DB-queries per request
     async session({ session, token }) {
       if (token?.sub) {
-        session.user.id      = token.sub
-        session.user.isAdmin = (token.isAdmin as boolean) ?? false
+        session.user.id          = token.sub
+        session.user.isAdmin     = (token.isAdmin as boolean)     ?? false
+        session.user.isOnboarded = (token.isOnboarded as boolean) ?? false
       }
       return session
     },
