@@ -186,6 +186,14 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
         />
       )}
 
+      {activeTab === 'cursisten' && (
+        <CursistenTab schoolId={schoolId} />
+      )}
+
+      {activeTab === 'berichten' && (
+        <BerichtenTab schoolId={schoolId} myUserId={myUserId} />
+      )}
+
       {activeTab === 'leden' && isEigenaar && (
         <LedenTab schoolId={schoolId} myUserId={myUserId} toast={toast} />
       )}
