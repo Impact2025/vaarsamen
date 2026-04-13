@@ -232,6 +232,7 @@ export function VerhuurClient({ schoolId, schoolNaam, vloot, isStaff, tarieven }
                     key={b.id}
                     boeking={b}
                     isStaff={isStaff}
+                    schoolId={schoolId}
                     onStatusUpdate={handleStatusUpdate}
                   />
                 ))
@@ -350,17 +351,21 @@ function TarievenKaart({ tarieven }: { tarieven: VerhuurTarieven }) {
 function BoekingKaart({
   boeking,
   isStaff,
+  schoolId,
   onStatusUpdate,
 }: {
   boeking:        Boeking
   isStaff:        boolean
+  schoolId:       string
   onStatusUpdate: (id: string, status: Boeking['status'], reactie?: string) => void
 }) {
-  const [reactie, setReactie]     = useState('')
+  const [reactie, setReactie]         = useState('')
   const [showReactie, setShowReactie] = useState(false)
   const si = STATUS_INFO[boeking.status]
 
-  const datum = parseISO(boeking.datum)
+  const datum    = parseISO(boeking.datum)
+  const isVerleden = isPast(datum) && !isToday(datum)
+  const toonRapport = boeking.isMine && boeking.status === 'goedgekeurd' && isVerleden
 
   return (
     <div className="bg-surface-container rounded-2xl border border-white/5 p-4 space-y-3">
@@ -419,6 +424,15 @@ function BoekingKaart({
               <span className="material-symbols-outlined text-sm" aria-hidden="true">cancel</span>
               Annuleren
             </button>
+          )}
+          {toonRapport && (
+            <a
+              href={`/school/${schoolId}/verhuur/${boeking.id}/rapport`}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/15 text-primary font-label text-xs font-semibold hover:bg-primary/25 transition-colors"
+            >
+              <span className="material-symbols-outlined text-sm" aria-hidden="true">rate_review</span>
+              Rapport invullen
+            </a>
           )}
         </div>
       </div>

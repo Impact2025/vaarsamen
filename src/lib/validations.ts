@@ -106,7 +106,9 @@ export const schoolCreateSchema = z.object({
   website:     z.string().url('Voer een geldige URL in').optional().or(z.literal('')),
 })
 
-export const schoolUpdateSchema = schoolCreateSchema.partial().omit({ slug: true })
+export const schoolUpdateSchema = schoolCreateSchema.partial().omit({ slug: true }).extend({
+  verhuurTarieven: z.any().optional(),
+})
 
 // ─── CURSUS ───────────────────────────────────────────────────────────────────
 

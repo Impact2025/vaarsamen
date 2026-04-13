@@ -24,9 +24,10 @@ export default async function LoginPage({
   return (
     <main className="min-h-screen bg-surface flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-6">
+
+        {/* Logo + header */}
+        <div className="text-center space-y-3">
+          <div className="flex justify-center mb-5">
             <div className="w-16 h-16 rounded-[1.5rem] gradient-primary shadow-glow flex items-center justify-center">
               <span
                 className="material-symbols-outlined text-on-primary text-3xl"
@@ -37,7 +38,7 @@ export default async function LoginPage({
               </span>
             </div>
           </div>
-          <h1 className="font-headline font-black text-3xl text-on-surface">
+          <h1 className="font-headline font-black text-3xl text-on-surface tracking-tight">
             {isRegistering ? 'Maak een account' : 'Welkom terug'}
           </h1>
           <p className="font-body text-on-surface-variant">
@@ -60,6 +61,7 @@ export default async function LoginPage({
 
         {/* Login opties */}
         <div className="glass-card rounded-card p-6 space-y-4">
+
           {/* Google */}
           <form
             action={async () => {
@@ -71,6 +73,7 @@ export default async function LoginPage({
               type="submit"
               className="w-full flex items-center justify-center gap-3 py-4 px-6
                          bg-white text-gray-900 rounded-full font-label font-bold
+                         border border-black/8 shadow-sm
                          hover:bg-gray-50 active:scale-95 transition-all
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
@@ -80,9 +83,9 @@ export default async function LoginPage({
           </form>
 
           <div className="flex items-center gap-4">
-            <div className="flex-1 h-px bg-white/10" />
+            <div className="flex-1 h-px divider-line" />
             <span className="font-label text-xs text-on-surface-variant">of</span>
-            <div className="flex-1 h-px bg-white/10" />
+            <div className="flex-1 h-px divider-line" />
           </div>
 
           {/* Magic link */}
@@ -105,11 +108,7 @@ export default async function LoginPage({
                 required
                 placeholder="jouw@email.nl"
                 autoComplete="email"
-                className="w-full px-4 py-4 bg-surface-container-high rounded-2xl
-                           text-on-surface placeholder:text-on-surface-variant/50
-                           border border-white/10 focus:border-primary/50
-                           font-body text-base
-                           focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                className="form-input w-full px-4 py-4 rounded-2xl font-body text-base"
               />
             </div>
             <button
@@ -150,9 +149,9 @@ export default async function LoginPage({
             <button
               type="submit"
               className="w-full flex items-center justify-center gap-2 py-3.5 px-6
-                         glass-card border border-primary/20 rounded-full
+                         glass-card border card-border rounded-full
                          text-primary font-label font-bold text-sm
-                         hover:border-primary/40 active:scale-95 transition-all
+                         hover:shadow-sm active:scale-95 transition-all
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <span className="material-symbols-outlined text-base" aria-hidden="true"
@@ -186,9 +185,9 @@ export default async function LoginPage({
                 <button
                   type="submit"
                   className="w-full flex items-center justify-center gap-2 py-3.5 px-6
-                             glass-card border border-primary/20 rounded-full
+                             glass-card border card-border rounded-full
                              text-primary font-label font-bold text-sm
-                             hover:border-primary/40 active:scale-95 transition-all
+                             hover:shadow-sm active:scale-95 transition-all
                              focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <span className="material-symbols-outlined text-base" aria-hidden="true"
@@ -222,9 +221,7 @@ export default async function LoginPage({
                 name="email"
                 type="email"
                 defaultValue="v.munster@weareimpact.nl"
-                className="flex-1 px-3 py-2.5 bg-surface-container-high rounded-xl
-                           text-on-surface text-sm font-body border border-white/10
-                           focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                className="form-input flex-1 px-3 py-2.5 rounded-xl text-sm font-body"
               />
               <button
                 type="submit"

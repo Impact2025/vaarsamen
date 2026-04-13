@@ -65,6 +65,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       allowedOrigins: [
         'localhost:3000',
+        'localhost:4600',
         'localhost:5500',
         'vaarsamen.vercel.app',
         '*.vercel.app',

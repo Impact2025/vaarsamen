@@ -51,7 +51,7 @@ export default function LandingPage() {
           ].map(({ icon, label }) => (
             <div
               key={label}
-              className="flex items-center gap-1.5 px-4 py-2 glass-card rounded-full border border-white/10"
+              className="flex items-center gap-1.5 px-4 py-2 glass-card rounded-full border card-border"
             >
               <span className="material-symbols-outlined text-sm text-primary" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden="true">
                 {icon}
@@ -76,7 +76,7 @@ export default function LandingPage() {
             href="/login"
             className="block w-full py-4 rounded-full glass-card text-on-surface
                        font-headline font-bold text-base text-center
-                       border border-white/10 active:scale-95 transition-all
+                       border card-border active:scale-95 transition-all
                        focus:outline-none focus-visible:ring-2 focus-visible:ring-outline"
           >
             Al een account? Inloggen

@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger'
 import { db } from '@/lib/db'
 import { reports } from '@/lib/db/schema'
 import { eq, count } from 'drizzle-orm'
+import { reportNotificationEmail, reportNotificationText } from '@/emails/templates'
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@vaarsamen.nl'
 
@@ -55,7 +56,8 @@ export async function POST(req: Request) {
         from:    process.env.EMAIL_FROM ?? 'noreply@vaarsamen.nl',
         to:      ADMIN_EMAIL,
         subject: `[VaarSamen] Profiel ${reportedId} heeft ${total} rapportages`,
-        text:    `Profiel ${reportedId} heeft ${total} rapportages ontvangen. Controleer via het admin dashboard.`,
+        html:    reportNotificationEmail({ reportedId, total: Number(total), reason, description }),
+        text:    reportNotificationText({ reportedId, total: Number(total), reason, description }),
       }),
     }).catch((err: unknown) => logger.error('Admin notificatie mislukt', { err: String(err) }))
   }

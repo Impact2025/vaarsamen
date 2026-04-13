@@ -97,7 +97,7 @@ export default async function CheckEmailPage() {
           >
             <button
               type="submit"
-              className="w-full py-4 rounded-full glass-card border border-white/10
+              className="w-full py-4 rounded-full glass-card border card-border
                          text-on-surface font-headline font-bold text-base text-center
                          active:scale-95 transition-all
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-outline"

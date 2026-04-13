@@ -9,14 +9,14 @@ const STORAGE_KEY = 'vaarsamen-theme'
 const ThemeContext = createContext<{
   theme: Theme
   setTheme: (t: Theme) => void
-}>({ theme: 'dark', setTheme: () => {} })
+}>({ theme: 'light', setTheme: () => {} })
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark')
+  const [theme, setThemeState] = useState<Theme>('light')
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
-    const resolved: Theme = saved === 'light' ? 'light' : 'dark'
+    const resolved: Theme = saved === 'dark' ? 'dark' : 'light'
     setThemeState(resolved)
     applyTheme(resolved)
   }, [])

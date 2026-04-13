@@ -542,6 +542,60 @@ export const boatRentals = pgTable('boat_rentals', {
   uniq: uniqueIndex('boat_rentals_boot_user_datum_uniq').on(t.bootId, t.userId, t.datum),
 }))
 
+// ─── BOOTBESCHIKBAARHEID ─────────────────────────────────────────────────────
+// Periodes dat een boot niet beschikbaar is voor verhuur (onderhoud, schade, reservering)
+
+export const boatAvailability = pgTable('boat_availability', {
+  id:        uuid('id').defaultRandom().primaryKey(),
+  bootId:    uuid('boot_id').notNull().references(() => schoolFleet.id, { onDelete: 'cascade' }),
+  schoolId:  uuid('school_id').notNull(),
+  dateFrom:  varchar('date_from', { length: 10 }).notNull(),  // YYYY-MM-DD
+  dateTo:    varchar('date_to',   { length: 10 }).notNull(),  // YYYY-MM-DD
+  reden:     text('reden'),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
+// ─── BOOT MELDINGEN ──────────────────────────────────────────────────────────
+// Schade/onderhoudsmeldingen — handmatig aangemeld of via post-verhuur rapport
+
+export const boatIssues = pgTable('boat_issues', {
+  id:           uuid('id').defaultRandom().primaryKey(),
+  schoolId:     uuid('school_id').notNull(),
+  bootId:       uuid('boot_id').notNull().references(() => schoolFleet.id),
+  rentalId:     uuid('rental_id').references(() => boatRentals.id),
+  reportedBy:   uuid('reported_by').references(() => users.id),
+  titel:        varchar('titel',       { length: 200 }).notNull(),
+  beschrijving: text('beschrijving'),
+  // gemeld → in_behandeling → besteld → gerepareerd | gesloten
+  status:       varchar('status',      { length: 30 }).notNull().default('gemeld'),
+  prioriteit:   varchar('prioriteit',  { length: 20 }).default('normaal'),
+              // laag | normaal | hoog | urgent
+  internNote:   text('intern_note'),
+  updatedBy:    uuid('updated_by').references(() => users.id),
+  createdAt:    timestamp('created_at').defaultNow(),
+  updatedAt:    timestamp('updated_at').defaultNow(),
+  resolvedAt:   timestamp('resolved_at'),
+}, (t) => ({
+  schoolIdx: index('boat_issues_school_id_idx').on(t.schoolId),
+  bootIdx:   index('boat_issues_boot_id_idx').on(t.bootId),
+}))
+
+// ─── SCHOOL BERICHTEN ────────────────────────────────────────────────────────
+// Berichten/aankondigingen van instructeurs/eigenaren aan het team
+
+export const schoolBerichten = pgTable('school_berichten', {
+  id:           uuid('id').defaultRandom().primaryKey(),
+  schoolId:     uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  senderUserId: uuid('sender_user_id').notNull().references(() => users.id),
+  inhoud:       text('inhoud').notNull(),
+  courseId:     uuid('course_id').references(() => schoolCourses.id, { onDelete: 'set null' }),
+  createdAt:    timestamp('created_at').defaultNow(),
+  updatedAt:    timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  schoolIdx: index('school_berichten_school_id_idx').on(t.schoolId),
+}))
+
 // ─── SCHOOL RELATIONS ─────────────────────────────────────────────────────────
 
 export const sailingSchoolsRelations = relations(sailingSchools, ({ one, many }) => ({

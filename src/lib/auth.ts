@@ -3,10 +3,12 @@ import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import Google from 'next-auth/providers/google'
 import Resend from 'next-auth/providers/resend'
 import Credentials from 'next-auth/providers/credentials'
+import { Resend as ResendClient } from 'resend'
 import { db } from '@/lib/db'
 import { users, accounts, sessions, verificationTokens, profiles } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { DEMO_ACCOUNTS, BOET_INSTRUCTEURS } from '@/lib/db/seeds/demo'
+import { magicLinkEmail, magicLinkText } from '@/emails/templates'
 
 // Expliciet getypeerd zodat NextAuth het juiste type verwacht — geen as any casts nodig
 const providers: NextAuthConfig['providers'] = []
@@ -19,10 +21,25 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 }
 
 if (process.env.RESEND_API_KEY) {
-  providers.push(Resend({
+  const resendBase = Resend({
     apiKey: process.env.RESEND_API_KEY,
     from:   process.env.EMAIL_FROM ?? 'noreply@vaarsamen.nl',
-  }))
+  })
+  providers.push({
+    ...resendBase,
+    async sendVerificationRequest({ identifier: email, url, provider }) {
+      const client = new ResendClient(process.env.RESEND_API_KEY!)
+      const from   = (provider as { from?: string }).from ?? 'noreply@vaarsamen.nl'
+      const { error } = await client.emails.send({
+        from,
+        to:      email,
+        subject: 'Jouw aanmeldlink voor VaarSamen',
+        html:    magicLinkEmail({ url }),
+        text:    magicLinkText({ url }),
+      })
+      if (error) throw new Error(`Resend fout: ${error.message}`)
+    },
+  })
 }
 
 // Directe email-login in development (geen wachtwoord nodig)

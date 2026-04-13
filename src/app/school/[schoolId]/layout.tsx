@@ -50,6 +50,14 @@ export default async function SchoolLayout({ children, params }: Props) {
                 <span className="hidden sm:inline">Overzicht</span>
               </Link>
             )}
+            <Link
+              href={`/school/${schoolId}/handleiding`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-label text-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+              aria-label="Handleiding openen"
+            >
+              <span className="material-symbols-outlined text-base" aria-hidden="true">help</span>
+              <span className="hidden sm:inline">Handleiding</span>
+            </Link>
             {process.env.ALLOW_DEMO_USERS && (
               <Link
                 href="/demo"

@@ -8,7 +8,6 @@ export default async function RegistreerPage() {
   const session = await auth()
 
   if (session) {
-    // Al ingelogd: stuur naar onboarding als nog niet gedaan, anders naar app
     const isOnboarded = (session.user as { isOnboarded?: boolean })?.isOnboarded
     redirect(isOnboarded ? '/ontdekken' : '/onboarding')
   }
@@ -21,9 +20,9 @@ export default async function RegistreerPage() {
     <main className="min-h-screen bg-surface flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-8">
 
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-6">
+        {/* Logo + header */}
+        <div className="text-center space-y-3">
+          <div className="flex justify-center mb-5">
             <div className="w-16 h-16 rounded-[1.5rem] gradient-primary shadow-glow flex items-center justify-center">
               <span
                 className="material-symbols-outlined text-on-primary text-3xl"
@@ -34,7 +33,7 @@ export default async function RegistreerPage() {
               </span>
             </div>
           </div>
-          <h1 className="font-headline font-black text-3xl text-on-surface">
+          <h1 className="font-headline font-black text-3xl text-on-surface tracking-tight">
             Maak een account
           </h1>
           <p className="font-body text-on-surface-variant">
@@ -68,11 +67,7 @@ export default async function RegistreerPage() {
                   required
                   placeholder="jouw@email.nl"
                   autoComplete="email"
-                  className="w-full px-4 py-4 bg-surface-container-high rounded-2xl
-                             text-on-surface placeholder:text-on-surface-variant/50
-                             border border-white/10 focus:border-primary/50
-                             font-body text-base
-                             focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                  className="form-input w-full px-4 py-4 rounded-2xl font-body text-base"
                 />
               </div>
               <button
@@ -93,9 +88,9 @@ export default async function RegistreerPage() {
           {/* Divider */}
           {hasGoogle && hasMagicLink && (
             <div className="flex items-center gap-4">
-              <div className="flex-1 h-px bg-white/10" />
+              <div className="flex-1 h-px divider-line" />
               <span className="font-label text-xs text-on-surface-variant">of</span>
-              <div className="flex-1 h-px bg-white/10" />
+              <div className="flex-1 h-px divider-line" />
             </div>
           )}
 
@@ -111,6 +106,7 @@ export default async function RegistreerPage() {
                 type="submit"
                 className="w-full flex items-center justify-center gap-3 py-4 px-6
                            bg-white text-gray-900 rounded-full font-label font-bold
+                           border border-black/8 shadow-sm
                            hover:bg-gray-50 active:scale-95 transition-all
                            focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
@@ -138,7 +134,7 @@ export default async function RegistreerPage() {
           </a>
         </p>
 
-        {/* Dev-only: registreer zonder e-mail — start altijd bij onboarding */}
+        {/* Dev-only: registreer zonder e-mail */}
         {isDev && (
           <div className="glass-card rounded-2xl p-4 border border-primary/20">
             <p className="font-label text-xs text-primary font-bold mb-3 uppercase tracking-wider">
@@ -163,9 +159,7 @@ export default async function RegistreerPage() {
                 name="email"
                 type="email"
                 defaultValue="test@vaarsamen.nl"
-                className="flex-1 px-3 py-2.5 bg-surface-container-high rounded-xl
-                           text-on-surface text-sm font-body border border-white/10
-                           focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                className="form-input flex-1 px-3 py-2.5 rounded-xl text-sm font-body"
               />
               <button
                 type="submit"
@@ -177,7 +171,7 @@ export default async function RegistreerPage() {
               </button>
             </form>
             <p className="font-label text-xs text-on-surface-variant mt-2">
-              Verwijdert bestaand profiel → altijd onboarding
+              Verwijdert bestaand profiel &rarr; altijd onboarding
             </p>
           </div>
         )}

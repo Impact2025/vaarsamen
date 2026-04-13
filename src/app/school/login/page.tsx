@@ -23,7 +23,7 @@ export default async function SchoolLoginPage({
   return (
     <div className="min-h-dvh bg-surface flex flex-col">
       {/* Minimale header */}
-      <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-white/5">
+      <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-on-surface/8">
         <div className="max-w-sm mx-auto px-4 h-14 flex items-center gap-3">
           <a
             href="/"
@@ -84,6 +84,7 @@ export default async function SchoolLoginPage({
                 type="submit"
                 className="w-full flex items-center justify-center gap-3 py-4 px-6
                            bg-white text-gray-900 rounded-full font-label font-bold
+                           border border-black/8 shadow-sm
                            hover:bg-gray-50 active:scale-95 transition-all
                            focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
@@ -93,9 +94,9 @@ export default async function SchoolLoginPage({
             </form>
 
             <div className="flex items-center gap-4">
-              <div className="flex-1 h-px bg-white/10" />
+              <div className="flex-1 h-px divider-line" />
               <span className="font-label text-xs text-on-surface-variant">of</span>
-              <div className="flex-1 h-px bg-white/10" />
+              <div className="flex-1 h-px divider-line" />
             </div>
 
             {/* Magic link */}
@@ -116,11 +117,7 @@ export default async function SchoolLoginPage({
                   required
                   placeholder="jouw@email.nl"
                   autoComplete="email"
-                  className="w-full px-4 py-4 bg-surface-container-high rounded-2xl
-                             text-on-surface placeholder:text-on-surface-variant/50
-                             border border-white/10 focus:border-primary/50
-                             font-body text-base
-                             focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                  className="form-input w-full px-4 py-4 rounded-2xl font-body text-base"
                 />
               </div>
               <button

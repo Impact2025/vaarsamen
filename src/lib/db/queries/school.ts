@@ -146,7 +146,7 @@ export async function getSchoolDashboard(schoolId: string): Promise<SchoolDashbo
     ))
     .where(and(eq(schoolCourses.schoolId, schoolId), isNull(schoolCourses.deletedAt)))
     .groupBy(schoolCourses.id)
-    .orderBy(desc(schoolCourses.createdAt))
+    .orderBy(asc(schoolCourses.name))
 
   // Cursisten per cursus — single query met GROUP BY (geen N+1)
   const courseIds = courseRows.map(r => r.course.id)
@@ -513,7 +513,7 @@ export async function getLessenVoorCursus(courseId: string): Promise<LesOverzich
     .from(schoolLessons)
     .leftJoin(users, eq(schoolLessons.instructeurId, users.id))
     .where(and(eq(schoolLessons.courseId, courseId), isNull(schoolLessons.deletedAt)))
-    .orderBy(desc(schoolLessons.datum))
+    .orderBy(asc(schoolLessons.datum))
 
   // Cursistenaantallen — single query met GROUP BY (geen N+1)
   const lessonIds = rows.map(r => r.les.id)

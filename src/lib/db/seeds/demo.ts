@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import {
   users, sailingSchools, schoolMemberships, schoolCourses, schoolFleet,
   schoolLessons, lessonStudents, skillDefinitions, skillAssessments,
-  lessonNotes, schoolInvites, boatRentals,
+  lessonNotes, schoolInvites, boatRentals, boatIssues,
 } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { seedKB2Skills } from './skills'
@@ -103,7 +103,9 @@ const BOET_INSTR_HENK      = 'aadde200-0000-0000-0000-000000000025'
 const BOET_COURSE_BLOK_A_MAWO = 'aadde200-0000-0000-0000-000000000031'
 const BOET_COURSE_BLOK_A_DIDO = 'aadde200-0000-0000-0000-000000000032'
 const BOET_COURSE_BLOK_C      = 'aadde200-0000-0000-0000-000000000033'
-// Lessen Ma/Wo (10), Di/Do (8), Blok C (4)
+// Lessen Ma/Wo (9 actieve lessen), Di/Do (7 actieve lessen), Blok C (4)
+// UUID-reeks: 41-50 voor Ma/Wo (index 45 = 27 apr Koningsdag = overgeslagen)
+//             51-58 voor Di/Do (index 57 = 5 mei Bevrijdingsdag = overgeslagen)
 const BOET_LES_MAWO = Array.from({ length: 10 }, (_, i) =>
   `aadde200-0000-0000-0000-0000000000${(41 + i).toString().padStart(2, '0')}`)
 const BOET_LES_DIDO = Array.from({ length: 8 }, (_, i) =>
@@ -518,7 +520,7 @@ export async function seedDemo() {
   // 15. Blok A instructeurs + cursisten aanmaken
   const blokAGebruikers = [
     // Instructeur
-    { id: BOET_INSTR_JAN_B,  email: 'jan.bijker.boet@vaarsamen.nl',    name: 'Jan Bijker',              role: 'instructeur' as const },
+    { id: BOET_INSTR_JAN_B,  email: 'jan.bijker.boet@vaarsamen.nl',    name: 'Jan Bijker',              role: 'eigenaar' as const },
     // Ma/Wo cursisten
     { id: BOET_CURSIST_DICK,    email: 'dick.vanleeuwen.boet@vaarsamen.nl',   name: 'Dick van Leeuwen',   role: 'cursist' as const },
     { id: BOET_CURSIST_PAUL,    email: 'paul.kortekaas.boet@vaarsamen.nl',    name: 'Paul Kortekaas',     role: 'cursist' as const },
@@ -556,18 +558,18 @@ export async function seedDemo() {
   }
 
   // 16. Blok A lessen aanmaken
-  // Ma/Wo: 10 lessen (13 apr – 13 mei)
+  // Ma/Wo: 9 lessen (13 apr – 13 mei), Ma 27 apr = Koningsdag overgeslagen
   const MAWO_LESSEN = [
-    { id: BOET_LES_MAWO[0], datum: '2026-04-13' },
-    { id: BOET_LES_MAWO[1], datum: '2026-04-15' },
-    { id: BOET_LES_MAWO[2], datum: '2026-04-20' },
-    { id: BOET_LES_MAWO[3], datum: '2026-04-22' },
-    { id: BOET_LES_MAWO[4], datum: '2026-04-27' },
-    { id: BOET_LES_MAWO[5], datum: '2026-04-29' },
-    { id: BOET_LES_MAWO[6], datum: '2026-05-04' },
-    { id: BOET_LES_MAWO[7], datum: '2026-05-06' },
-    { id: BOET_LES_MAWO[8], datum: '2026-05-11' },
-    { id: BOET_LES_MAWO[9], datum: '2026-05-13' },
+    { id: BOET_LES_MAWO[0], datum: '2026-04-13' }, // Ma
+    { id: BOET_LES_MAWO[1], datum: '2026-04-15' }, // Wo
+    { id: BOET_LES_MAWO[2], datum: '2026-04-20' }, // Ma
+    { id: BOET_LES_MAWO[3], datum: '2026-04-22' }, // Wo
+    // BOET_LES_MAWO[4] = 27 apr KONINGSDAG — geen les
+    { id: BOET_LES_MAWO[5], datum: '2026-04-29' }, // Wo (geen Ma die week)
+    { id: BOET_LES_MAWO[6], datum: '2026-05-04' }, // Ma
+    { id: BOET_LES_MAWO[7], datum: '2026-05-06' }, // Wo
+    { id: BOET_LES_MAWO[8], datum: '2026-05-11' }, // Ma
+    { id: BOET_LES_MAWO[9], datum: '2026-05-13' }, // Wo
   ]
 
   for (const les of MAWO_LESSEN) {
@@ -577,16 +579,16 @@ export async function seedDemo() {
       .onConflictDoUpdate({ target: schoolLessons.id, set: { datum: sql`excluded.datum` } })
   }
 
-  // Di/Do: 8 lessen (14 apr – 7 mei)
+  // Di/Do: 7 lessen (14 apr – 7 mei), Di 5 mei = Bevrijdingsdag overgeslagen
   const DIDO_LESSEN = [
-    { id: BOET_LES_DIDO[0], datum: '2026-04-14' },
-    { id: BOET_LES_DIDO[1], datum: '2026-04-16' },
-    { id: BOET_LES_DIDO[2], datum: '2026-04-21' },
-    { id: BOET_LES_DIDO[3], datum: '2026-04-23' },
-    { id: BOET_LES_DIDO[4], datum: '2026-04-28' },
-    { id: BOET_LES_DIDO[5], datum: '2026-04-30' },
-    { id: BOET_LES_DIDO[6], datum: '2026-05-05' },
-    { id: BOET_LES_DIDO[7], datum: '2026-05-07' },
+    { id: BOET_LES_DIDO[0], datum: '2026-04-14' }, // Di
+    { id: BOET_LES_DIDO[1], datum: '2026-04-16' }, // Do
+    { id: BOET_LES_DIDO[2], datum: '2026-04-21' }, // Di
+    { id: BOET_LES_DIDO[3], datum: '2026-04-23' }, // Do
+    { id: BOET_LES_DIDO[4], datum: '2026-04-28' }, // Di
+    { id: BOET_LES_DIDO[5], datum: '2026-04-30' }, // Do
+    // BOET_LES_DIDO[6] = 5 mei BEVRIJDINGSDAG — geen les
+    { id: BOET_LES_DIDO[7], datum: '2026-05-07' }, // Do (geen Di die week)
   ]
 
   for (const les of DIDO_LESSEN) {
@@ -597,15 +599,17 @@ export async function seedDemo() {
   }
 
   // 17. Cursistenopkomst Blok A
-  // Ma/Wo: Dick 9/10, Paul 8/10, Marcel 9/10, Martin 7/10, Pieter 9/10, Tessa 7/10
-  // Afwezig = index van les (0-9)
+  // MAWO_LESSEN indices 0–8 (9 actieve lessen, Koningsdag al verwijderd):
+  //   0=Ma 13/4  1=Wo 15/4  2=Ma 20/4  3=Wo 22/4  4=Wo 29/4
+  //   5=Ma 4/5   6=Wo 6/5   7=Ma 11/5  8=Wo 13/5
+  // Patroon uit rooster (PDF): XX XX X X X X = beide dagen aanwezig per week
   const MAWO_AANWEZIGHEID: Record<string, number[]> = {
-    [BOET_CURSIST_DICK]:   [0,1,2,3,4,5,6,7,8],           // 9 lessen (afwezig: les 9)
-    [BOET_CURSIST_PAUL]:   [0,1,2,3,4,5,6,7],              // 8 lessen (afwezig: les 8, 9)
-    [BOET_CURSIST_MARCEL]: [0,1,2,3,4,5,6,7,8],           // 9 lessen
-    [BOET_CURSIST_MARTIN]: [0,1,2,3,5,7,8],               // 7 lessen
-    [BOET_CURSIST_PIETER]: [0,1,2,3,4,5,6,7,9],           // 9 lessen
-    [BOET_CURSIST_TESSA]:  [0,1,3,4,5,6,9],               // 7 lessen
+    [BOET_CURSIST_DICK]:   [0,1,2,3,4,5,6,7],    // 8/9 — afwezig: 8 (Wo 13 mei)
+    [BOET_CURSIST_PAUL]:   [0,2,3,4,5,6,7],       // 7/9 — afwezig: 1 (Wo 15 apr), 8 (Wo 13 mei)
+    [BOET_CURSIST_MARCEL]: [0,1,2,3,4,5,6,7],     // 8/9 — afwezig: 8 (Wo 13 mei)
+    [BOET_CURSIST_MARTIN]: [0,1,2,3,5,6,7],       // 7/9 — afwezig: 4 (Wo 29 apr), 8 (Wo 13 mei)
+    [BOET_CURSIST_PIETER]: [0,1,2,3,4,5,6,8],     // 8/9 — afwezig: 7 (Ma 11 mei)
+    [BOET_CURSIST_TESSA]:  [0,3,4,5,6,7],         // 6/9 — afwezig: 1 (Wo 15 apr), 2 (Ma 20 apr), 8 (Wo 13 mei)
   }
 
   for (const [cursistId, aanwezigeIndices] of Object.entries(MAWO_AANWEZIGHEID)) {
@@ -621,7 +625,7 @@ export async function seedDemo() {
     }
   }
 
-  // Di/Do: alle 6 cursisten aanwezig op alle 8 lessen
+  // Di/Do: alle 6 cursisten aanwezig op alle 7 lessen
   const DIDO_CURSISTEN = [
     BOET_CURSIST_ROBERT, BOET_CURSIST_BOB, BOET_CURSIST_VINCENT,
     BOET_CURSIST_RENE_DB, BOET_CURSIST_JAN_S, BOET_CURSIST_GITTE,
@@ -776,7 +780,8 @@ export async function seedDemo() {
   }
 
   // 20. Alle Boet instructeurs aanmaken (idempotent — bestaande worden overgeslagen)
-  for (const instr of BOET_INSTRUCTEURS) {
+  // Jan Bijker (BOET_INSTR_JAN_B_ID) overslaan: hij is al als eigenaar ingesteld in stap 15
+  for (const instr of BOET_INSTRUCTEURS.filter(i => i.id !== BOET_INSTR_JAN_B_ID)) {
     await db
       .insert(users)
       .values({ id: instr.id, email: instr.email, name: instr.name })
@@ -788,6 +793,97 @@ export async function seedDemo() {
       .onConflictDoUpdate({
         target: [schoolMemberships.schoolId, schoolMemberships.userId],
         set: { role: sql`excluded.role`, deletedAt: null },
+      })
+  }
+
+  // 21. Demo boot-meldingen (rapportage systeem)
+  const demoMeldingen = [
+    {
+      id:           'aadde300-0000-0000-0000-000000000001',
+      bootId:       DEMO_BOOT_1,
+      titel:        'Roer beschadigd — stijf en trekt naar bakboord',
+      beschrijving: 'Na verhuur gemeld door huurder. Roer voelt stijf aan en trekt naar bakboord bij rechtuit varen. Mogelijk pin versleten of bevestiging los.',
+      status:       'gemeld' as const,
+      prioriteit:   'hoog' as const,
+      reportedBy:   BOET_CURSIST_DICK,
+    },
+    {
+      id:           'aadde300-0000-0000-0000-000000000002',
+      bootId:       DEMO_BOOT_2,
+      titel:        'Schoot gerafeld — dreigt te scheuren',
+      beschrijving: 'Grootschoot is aan het uiteinde gerafeld over ca. 15 cm. Nog functioneel maar moet op korte termijn vervangen worden.',
+      status:       'in_behandeling' as const,
+      prioriteit:   'normaal' as const,
+      internNote:   'Jan heeft een nieuwe schoot besteld bij Wattenberg. Verwachte levering volgende week.',
+      reportedBy:   BOET_INSTR_NICO,
+    },
+    {
+      id:           'aadde300-0000-0000-0000-000000000003',
+      bootId:       BOET_BOOT_BOETSMEN,
+      titel:        'Buitenboordmotor slaat moeilijk aan',
+      beschrijving: "Motor van Boet's men slaat na koud starten slecht aan. Na 5–10 pogingen lukt het wel. Vermoedelijk carburateur of bougie.",
+      status:       'besteld' as const,
+      prioriteit:   'hoog' as const,
+      internNote:   'Bougie en carburateur-set besteld bij Suzuki dealer Amsterdam. Levertijd 3–5 werkdagen. Bart repareert zodra onderdelen binnen zijn.',
+      reportedBy:   BOET_INSTR_BART,
+    },
+    {
+      id:           'aadde300-0000-0000-0000-000000000004',
+      bootId:       DEMO_BOOT_3,
+      titel:        'Klein scheurtje in grootzeil — bovenliek hoek',
+      beschrijving: 'Huurder meldde een scheurtje van ca. 3 cm bij de hoek van het bovenliek. Zeil is nog veilig te gebruiken maar moet worden geplakt.',
+      status:       'gerepareerd' as const,
+      prioriteit:   'normaal' as const,
+      internNote:   'Gerepareerd met zeilplakband op 10 april. Wim heeft het gedaan. Hou in de gaten of het houdt.',
+      reportedBy:   BOET_CURSIST_TESSA,
+    },
+    {
+      id:           'aadde300-0000-0000-0000-000000000005',
+      bootId:       DEMO_BOOT_4,
+      titel:        'Zwaard klemt — omhoog trekken gaat met moeite',
+      beschrijving: 'Polyvalk-zwaard is moeilijk omhoog te trekken, klem zit vast. Mogelijk vuil of roest in het zwaardsschacht.',
+      status:       'gemeld' as const,
+      prioriteit:   'normaal' as const,
+      reportedBy:   BOET_CURSIST_MARTIN,
+    },
+    {
+      id:           'aadde300-0000-0000-0000-000000000006',
+      bootId:       BOET_BOOT_KANO_1,
+      titel:        'Peddel beschadigd — blad gebarsten',
+      beschrijving: 'Linkerblad van de peddel van Kano 1 heeft een barst van ca. 5 cm. Nog bruikbaar maar vervanging gewenst.',
+      status:       'gemeld' as const,
+      prioriteit:   'laag' as const,
+      reportedBy:   BOET_INSTR_WIM,
+    },
+    {
+      id:           'aadde300-0000-0000-0000-000000000007',
+      bootId:       BOET_BOOT_ALMERA,
+      titel:        'Navigatieverlichting bakboord werkt niet',
+      beschrijving: 'Het rode navigatielicht (bakboord) van de Almera werkt niet meer. Zekering of lamp. Boot mag tot reparatie alleen overdag gebruikt worden.',
+      status:       'in_behandeling' as const,
+      prioriteit:   'urgent' as const,
+      internNote:   'Evelien bekijkt het zaterdag. Zekering eerst checken.',
+      reportedBy:   BOET_INSTR_JAN_B,
+    },
+  ]
+
+  for (const m of demoMeldingen) {
+    await db
+      .insert(boatIssues)
+      .values({
+        id:           m.id,
+        schoolId:     DEMO_SCHOOL_ID,
+        bootId:       m.bootId,
+        titel:        m.titel,
+        beschrijving: m.beschrijving,
+        status:       m.status,
+        prioriteit:   m.prioriteit,
+        internNote:   (m as { internNote?: string }).internNote ?? null,
+        reportedBy:   m.reportedBy,
+      })
+      .onConflictDoUpdate({
+        target: boatIssues.id,
+        set: { status: sql`excluded.status`, internNote: sql`excluded.intern_note` },
       })
   }
 

@@ -56,40 +56,27 @@ export default async function DemoPage() {
 
         {/* Demo accounts */}
         <div className="space-y-3">
-          {/* Instructeur */}
-          <form action={async () => {
-            'use server'
-            try {
-              await signIn('demo-user', {
-                userId:     DEMO_ACCOUNTS[0].id,
-                redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
-              })
-            } catch (e: unknown) {
-              if (isRedirectError(e)) throw e
-              redirect('/demo')
-            }
-          }}>
-            <button type="submit"
-              className="w-full flex items-center gap-4 p-4 glass-card rounded-2xl border border-white/8
-                         hover:border-primary/30 active:scale-[0.98] transition-all text-left">
-              <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-primary text-2xl" aria-hidden="true"
-                      style={{ fontVariationSettings: "'FILL' 1" }}>
-                  person_check
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-headline font-bold text-on-surface text-sm">Petra Smit</p>
-                <p className="font-label text-xs text-primary font-semibold">Instructeur</p>
-                <p className="font-label text-[11px] text-on-surface-variant mt-0.5">
-                  Beoordelingen invullen · Lessen beheren
-                </p>
-              </div>
-              <span className="material-symbols-outlined text-on-surface-variant/40 flex-shrink-0" aria-hidden="true">
-                arrow_forward
+          {/* Instructeur — via /boet pincode login */}
+          <a href="/boet"
+            className="w-full flex items-center gap-4 p-4 glass-card rounded-2xl border border-white/8
+                       hover:border-primary/30 active:scale-[0.98] transition-all text-left">
+            <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-primary text-2xl" aria-hidden="true"
+                    style={{ fontVariationSettings: "'FILL' 1" }}>
+                person_check
               </span>
-            </button>
-          </form>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-headline font-bold text-on-surface text-sm">Instructeur inloggen</p>
+              <p className="font-label text-xs text-primary font-semibold">Zeilschool De Boet</p>
+              <p className="font-label text-[11px] text-on-surface-variant mt-0.5">
+                Pincode invoeren · Lessen beheren
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-on-surface-variant/40 flex-shrink-0" aria-hidden="true">
+              arrow_forward
+            </span>
+          </a>
 
           {/* Cursist */}
           <form action={async () => {
@@ -154,10 +141,10 @@ export default async function DemoPage() {
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-headline font-bold text-on-surface text-sm">Jan Bijker</p>
-                <p className="font-label text-xs text-primary font-semibold">Instructeur · De Boet</p>
+                <p className="font-headline font-bold text-on-surface text-sm">Zeilschool De Boet</p>
+                <p className="font-label text-xs text-primary font-semibold">Eigenaar</p>
                 <p className="font-label text-[11px] text-on-surface-variant mt-0.5">
-                  Blok A lessen · beoordelingen invullen
+                  Volledig schoolbeheer · vloot · verhuur
                 </p>
               </div>
               <span className="material-symbols-outlined text-on-surface-variant/40 flex-shrink-0" aria-hidden="true">

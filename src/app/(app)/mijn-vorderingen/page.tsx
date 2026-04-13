@@ -2,6 +2,8 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getMijnVorderingen } from '@/lib/db/queries/school'
 import { VorderingenGrid } from './VorderingenGrid'
+import { SchoolBerichten } from './SchoolBerichten'
+import { CursistTour } from '@/components/onboarding/CursistTour'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -15,8 +17,19 @@ export default async function MijnVorderingenPage() {
 
   const vorderingen = await getMijnVorderingen(session.user.id)
 
+  // Groepeer cursussen per school zodat berichten slechts één keer per school getoond worden
+  const schoolMap = new Map<string, { naam: string; cursussen: typeof vorderingen }>()
+  for (const v of vorderingen) {
+    const sid = v.school.id
+    if (!schoolMap.has(sid)) schoolMap.set(sid, { naam: v.school.name, cursussen: [] })
+    schoolMap.get(sid)!.cursussen.push(v)
+  }
+
   return (
     <div className="px-4 pt-6 pb-8 space-y-6">
+
+      {/* Welkomstour cursist — eenmalig */}
+      <CursistTour />
 
       {/* Header */}
       <div>
@@ -39,8 +52,17 @@ export default async function MijnVorderingenPage() {
           </div>
         </div>
       ) : (
-        vorderingen.map(v => (
-          <VorderingenGrid key={v.course.id} vorderingen={v} schoolId={v.school.id} />
+        [...schoolMap.entries()].map(([schoolId, { naam, cursussen }]) => (
+          <div key={schoolId} className="space-y-4">
+            {cursussen.map(v => (
+              <VorderingenGrid key={v.course.id} vorderingen={v} schoolId={schoolId} />
+            ))}
+            <SchoolBerichten
+              schoolId={schoolId}
+              schoolNaam={naam}
+              myUserId={session.user.id}
+            />
+          </div>
         ))
       )}
     </div>
