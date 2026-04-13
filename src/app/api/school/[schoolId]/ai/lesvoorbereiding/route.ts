@@ -15,28 +15,29 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ schoolId: string }> },
 ) {
+  try {
   const session = await auth()
-  if (!session?.user?.id) return new Response('Unauthorized', { status: 401 })
+  if (!session?.user?.id) return Response.json({ error: 'Niet ingelogd' }, { status: 401 })
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
   if (!membership || !['eigenaar', 'instructeur'].includes(membership.role)) {
-    return new Response('Forbidden', { status: 403 })
+    return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
   const { lesId } = await req.json() as { lesId: string }
-  if (!lesId) return new Response('lesId required', { status: 400 })
+  if (!lesId) return Response.json({ error: 'lesId vereist' }, { status: 400 })
 
   const [school] = await db
     .select()
     .from(sailingSchools)
     .where(and(eq(sailingSchools.id, schoolId), isNull(sailingSchools.deletedAt)))
     .limit(1)
-  if (!school) return new Response('School niet gevonden', { status: 404 })
+  if (!school) return Response.json({ error: 'School niet gevonden' }, { status: 404 })
 
   const lesDetail = await getLesDetail(lesId)
-  if (!lesDetail) return new Response('Les niet gevonden', { status: 404 })
-  if (lesDetail.les.schoolId !== schoolId) return new Response('Forbidden', { status: 403 })
+  if (!lesDetail) return Response.json({ error: 'Les niet gevonden' }, { status: 404 })
+  if (lesDetail.les.schoolId !== schoolId) return Response.json({ error: 'Geen toegang' }, { status: 403 })
 
   const { les, skills, students } = lesDetail
 
@@ -116,4 +117,7 @@ Wees specifiek en praktisch. Verwijs naar KB2-codes waar relevant.`
       'X-Content-Type-Options': 'nosniff',
     },
   })
+  } catch (err) {
+    return Response.json({ error: (err as Error).message ?? 'Onbekende fout' }, { status: 500 })
+  }
 }

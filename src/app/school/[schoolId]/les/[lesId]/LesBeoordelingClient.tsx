@@ -188,8 +188,18 @@ export function LesBeoordelingClient({ detail, schoolId }: Props) {
       })
 
       if (!res.ok) {
-        const txt = await res.text()
-        setAiPanel(p => p ? { ...p, loading: false, error: txt || 'Fout bij AI analyse' } : null)
+        // Lees fout als JSON indien mogelijk; toon nooit raw HTML
+        const contentType = res.headers.get('content-type') ?? ''
+        let errorMsg = `Serverfout (${res.status}) — probeer het opnieuw`
+        if (contentType.includes('application/json')) {
+          const json = await res.json().catch(() => null)
+          if (json?.error) errorMsg = json.error
+        } else if (res.status === 401) {
+          errorMsg = 'Geen toegang — log opnieuw in'
+        } else if (res.status === 403) {
+          errorMsg = 'Geen rechten voor deze actie'
+        }
+        setAiPanel(p => p ? { ...p, loading: false, error: errorMsg } : null)
         return
       }
 

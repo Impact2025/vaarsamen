@@ -16,18 +16,19 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ schoolId: string }> },
 ) {
+  try {
   const session = await auth()
-  if (!session?.user?.id) return new Response('Unauthorized', { status: 401 })
+  if (!session?.user?.id) return Response.json({ error: 'Niet ingelogd' }, { status: 401 })
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
   if (!membership || !['eigenaar', 'instructeur'].includes(membership.role)) {
-    return new Response('Forbidden', { status: 403 })
+    return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
   const body = await req.json() as { studentUserId: string; courseId?: string }
   const { studentUserId, courseId } = body
-  if (!studentUserId) return new Response('studentUserId required', { status: 400 })
+  if (!studentUserId) return Response.json({ error: 'studentUserId vereist' }, { status: 400 })
 
   // Haal school op
   const [school] = await db
@@ -35,7 +36,7 @@ export async function POST(
     .from(sailingSchools)
     .where(and(eq(sailingSchools.id, schoolId), isNull(sailingSchools.deletedAt)))
     .limit(1)
-  if (!school) return new Response('School niet gevonden', { status: 404 })
+  if (!school) return Response.json({ error: 'School niet gevonden' }, { status: 404 })
 
   // Haal cursist op
   const [cursist] = await db
@@ -43,7 +44,7 @@ export async function POST(
     .from(users)
     .where(eq(users.id, studentUserId))
     .limit(1)
-  if (!cursist) return new Response('Cursist niet gevonden', { status: 404 })
+  if (!cursist) return Response.json({ error: 'Cursist niet gevonden' }, { status: 404 })
 
   // Haal lessen op waar deze cursist aan meedeed (evt gefilterd op cursus)
   const studentLesRows = await db
@@ -66,7 +67,7 @@ export async function POST(
     .orderBy(asc(schoolLessons.datum))
 
   if (studentLesRows.length === 0) {
-    return new Response('Geen lessen gevonden voor deze cursist', { status: 404 })
+    return Response.json({ error: 'Geen lessen gevonden voor deze cursist' }, { status: 404 })
   }
 
   // CWO niveau uit eerste les
@@ -186,4 +187,7 @@ Wees concreet, gebruik de vaardigheids-codes (KB2-01 etc.) en houd de toon motiv
       'X-Content-Type-Options': 'nosniff',
     },
   })
+  } catch (err) {
+    return Response.json({ error: (err as Error).message ?? 'Onbekende fout' }, { status: 500 })
+  }
 }

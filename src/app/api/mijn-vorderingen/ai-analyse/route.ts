@@ -7,14 +7,15 @@ import { streamToController } from '@/lib/ai'
 // Cursist vraagt een AI analyse van zijn eigen vorderingen op
 
 export async function POST(req: Request) {
+  try {
   const session = await auth()
-  if (!session?.user?.id) return new Response('Unauthorized', { status: 401 })
+  if (!session?.user?.id) return Response.json({ error: 'Niet ingelogd' }, { status: 401 })
 
   const { schoolId } = await req.json() as { schoolId?: string }
 
   const vorderingenList = await getMijnVorderingen(session.user.id, schoolId)
   if (vorderingenList.length === 0) {
-    return new Response('Geen vorderingen gevonden', { status: 404 })
+    return Response.json({ error: 'Geen vorderingen gevonden' }, { status: 404 })
   }
 
   // Neem de eerste (of enige) vorderingen set
@@ -94,4 +95,7 @@ Schrijf alsof je me na de les even apart neemt. Motiverend maar eerlijk.`
       'X-Content-Type-Options': 'nosniff',
     },
   })
+  } catch (err) {
+    return Response.json({ error: (err as Error).message ?? 'Onbekende fout' }, { status: 500 })
+  }
 }
