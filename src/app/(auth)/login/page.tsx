@@ -1,5 +1,6 @@
 import { signIn } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { auth } from '@/lib/auth'
 import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
 
@@ -138,10 +139,7 @@ export default async function LoginPage({
                   redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
                 })
               } catch (e: unknown) {
-                // NEXT_REDIRECT moet altijd doorkomen
-                if (e instanceof Error && e.message === 'NEXT_REDIRECT') throw e
-                if ((e as { digest?: string })?.digest?.startsWith('NEXT_REDIRECT')) throw e
-                // AuthError: stuur terug naar login
+                if (isRedirectError(e)) throw e
                 redirect('/login?error=demo')
               }
             }}
@@ -177,8 +175,7 @@ export default async function LoginPage({
                       : `/mijn-vorderingen`
                     await signIn('demo-user', { userId: account.id, redirectTo: dest })
                   } catch (e: unknown) {
-                    if (e instanceof Error && e.message === 'NEXT_REDIRECT') throw e
-                    if ((e as { digest?: string })?.digest?.startsWith('NEXT_REDIRECT')) throw e
+                    if (isRedirectError(e)) throw e
                     redirect('/login?error=demo')
                   }
                 }}

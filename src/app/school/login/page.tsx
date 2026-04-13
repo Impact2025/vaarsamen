@@ -1,5 +1,6 @@
 import { signIn } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { auth } from '@/lib/auth'
 import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
 import type { Metadata } from 'next'
@@ -151,8 +152,7 @@ export default async function SchoolLoginPage({
                         redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
                       })
                     } catch (e: unknown) {
-                      if (e instanceof Error && e.message === 'NEXT_REDIRECT') throw e
-                      if ((e as { digest?: string })?.digest?.startsWith('NEXT_REDIRECT')) throw e
+                      if (isRedirectError(e)) throw e
                       redirect('/school/login?error=demo')
                     }
                   }}
@@ -195,8 +195,7 @@ export default async function SchoolLoginPage({
                     redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
                   })
                 } catch (e: unknown) {
-                  if (e instanceof Error && e.message === 'NEXT_REDIRECT') throw e
-                  if ((e as { digest?: string })?.digest?.startsWith('NEXT_REDIRECT')) throw e
+                  if (isRedirectError(e)) throw e
                   redirect('/school/login?error=demo')
                 }
               }}
