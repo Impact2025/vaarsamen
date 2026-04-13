@@ -50,10 +50,3 @@ export async function seedKB2Skills() {
   return { seeded: values.length, level: 'cwo_kielboot2' }
 }
 
-// ─── DIRECTE RUN (npx tsx src/lib/db/seeds/skills.ts) ────────────────────────
-
-if (require.main === module) {
-  seedKB2Skills()
-    .then(r => { console.log(`✓ ${r.seeded} skills geseed voor ${r.level}`); process.exit(0) })
-    .catch(e => { console.error('Seed mislukt:', e); process.exit(1) })
-}

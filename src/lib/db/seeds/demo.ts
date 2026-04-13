@@ -5,7 +5,7 @@ import {
   lessonNotes, schoolInvites, boatRentals,
 } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
-// seedKB2Skills dynamisch importeren — voorkomt dat Edge Middleware skills.ts inlaadt
+import { seedKB2Skills } from './skills'
 
 // ─── VASTE DEMO UUIDs ─────────────────────────────────────────────────────────
 // Idempotent: seed kan meerdere keren veilig worden uitgevoerd
@@ -267,7 +267,6 @@ const OPMERKINGEN: { cursistId: string; lesId: string; tekst: string }[] = [
 
 export async function seedDemo() {
   // 1. KB2 skills seeden (idempotent)
-  const { seedKB2Skills } = await import('./skills')
   await seedKB2Skills()
 
   // Skills ophalen (nodig voor assessments)
