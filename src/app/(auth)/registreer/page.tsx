@@ -1,0 +1,150 @@
+import { signIn } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
+
+export default async function RegistreerPage() {
+  const session = await auth()
+
+  if (session) {
+    // Al ingelogd: stuur naar onboarding als nog niet gedaan, anders naar app
+    const isOnboarded = (session.user as { isOnboarded?: boolean })?.isOnboarded
+    redirect(isOnboarded ? '/ontdekken' : '/onboarding')
+  }
+
+  const hasGoogle = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+  const hasMagicLink = !!process.env.RESEND_API_KEY
+
+  return (
+    <main className="min-h-screen bg-surface flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-sm space-y-8">
+
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 rounded-[1.5rem] gradient-primary shadow-glow flex items-center justify-center">
+              <span
+                className="material-symbols-outlined text-on-primary text-3xl"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+                aria-hidden="true"
+              >
+                sailing
+              </span>
+            </div>
+          </div>
+          <h1 className="font-headline font-black text-3xl text-on-surface">
+            Maak een account
+          </h1>
+          <p className="font-body text-on-surface-variant">
+            Vind jouw zeilmaatje in een paar minuten
+          </p>
+        </div>
+
+        {/* Registratie opties */}
+        <div className="glass-card rounded-card p-6 space-y-4">
+
+          {/* Magic link — primaire methode */}
+          {hasMagicLink && (
+            <form
+              action={async (formData: FormData) => {
+                'use server'
+                const email = formData.get('email') as string
+                await signIn('resend', { email, redirectTo: '/onboarding' })
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label htmlFor="email" className="font-label text-sm font-semibold text-on-surface-variant block mb-2">
+                  E-mailadres
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="jouw@email.nl"
+                  autoComplete="email"
+                  className="w-full px-4 py-4 bg-surface-container-high rounded-2xl
+                             text-on-surface placeholder:text-on-surface-variant/50
+                             border border-white/10 focus:border-primary/50
+                             font-body text-base
+                             focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-4 rounded-full gradient-primary text-on-primary
+                           font-headline font-bold shadow-glow
+                           active:scale-95 transition-all
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                Stuur registratielink
+              </button>
+              <p className="font-label text-xs text-on-surface-variant text-center">
+                We sturen je een link — geen wachtwoord nodig
+              </p>
+            </form>
+          )}
+
+          {/* Divider */}
+          {hasGoogle && hasMagicLink && (
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="font-label text-xs text-on-surface-variant">of</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+          )}
+
+          {/* Google OAuth — secundaire methode */}
+          {hasGoogle && (
+            <form
+              action={async () => {
+                'use server'
+                await signIn('google', { redirectTo: '/onboarding' })
+              }}
+            >
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-3 py-4 px-6
+                           bg-white text-gray-900 rounded-full font-label font-bold
+                           hover:bg-gray-50 active:scale-95 transition-all
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <GoogleIcon />
+                Doorgaan met Google
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* Juridisch */}
+        <p className="text-center font-label text-xs text-on-surface-variant">
+          Door te registreren ga je akkoord met onze{' '}
+          <a href="/privacy" className="text-primary hover:underline">privacyverklaring</a>
+          {' '}en{' '}
+          <a href="/voorwaarden" className="text-primary hover:underline">gebruiksvoorwaarden</a>.
+          Minimale leeftijd: 16 jaar.
+        </p>
+
+        {/* Link naar inloggen */}
+        <p className="text-center font-label text-sm text-on-surface-variant">
+          Al een account?{' '}
+          <a href="/login" className="text-primary font-semibold hover:underline">
+            Inloggen
+          </a>
+        </p>
+
+      </div>
+    </main>
+  )
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
+      <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/>
+      <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
+      <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
+    </svg>
+  )
+}

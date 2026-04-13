@@ -12,7 +12,7 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth
 
   // Publieke routes: altijd doorlaten
-  const isPublicPage = ['/', '/login', '/school/login', '/demo'].includes(pathname)
+  const isPublicPage = ['/', '/login', '/registreer', '/school/login', '/demo'].includes(pathname)
     || pathname.startsWith('/school/join/')
   const isPublicApi  = PUBLIC_API_ROUTES.some(r => pathname.startsWith(r))
   const isStaticFile = pathname.startsWith('/_next')

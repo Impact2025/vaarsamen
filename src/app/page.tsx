@@ -64,7 +64,7 @@ export default function LandingPage() {
         {/* CTA knoppen */}
         <div className="w-full space-y-3">
           <Link
-            href="/login?callbackUrl=/onboarding"
+            href="/registreer"
             className="block w-full py-5 rounded-full gradient-primary text-on-primary
                        font-headline font-extrabold text-lg text-center
                        shadow-glow active:scale-95 transition-all
