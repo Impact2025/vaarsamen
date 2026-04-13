@@ -50,8 +50,8 @@ export default async function BoetLoginPage({
           action={async (formData: FormData) => {
             'use server'
             const pin = formData.get('pin') as string
-            const correct = process.env.BOET_PIN
-            if (!correct || pin !== correct) {
+            const correct = process.env.BOET_PIN?.trim()
+            if (!correct || pin.trim() !== correct) {
               redirect('/boet?error=1')
             }
             const store = await cookies()
