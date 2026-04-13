@@ -1,5 +1,6 @@
 import { signIn } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { auth } from '@/lib/auth'
 import { cookies } from 'next/headers'
 
@@ -12,8 +13,9 @@ export default async function RegistreerPage() {
     redirect(isOnboarded ? '/ontdekken' : '/onboarding')
   }
 
-  const hasGoogle = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+  const hasGoogle    = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
   const hasMagicLink = !!process.env.RESEND_API_KEY
+  const isDev        = process.env.NODE_ENV !== 'production'
 
   return (
     <main className="min-h-screen bg-surface flex flex-col items-center justify-center p-6">
@@ -135,6 +137,50 @@ export default async function RegistreerPage() {
             Inloggen
           </a>
         </p>
+
+        {/* Dev-only: registreer zonder e-mail — start altijd bij onboarding */}
+        {isDev && (
+          <div className="glass-card rounded-2xl p-4 border border-primary/20">
+            <p className="font-label text-xs text-primary font-bold mb-3 uppercase tracking-wider">
+              Dev registreer
+            </p>
+            <form
+              action={async (formData: FormData) => {
+                'use server'
+                const email = formData.get('email') as string
+                try {
+                  await signIn('dev-register', { email, redirectTo: '/onboarding' })
+                } catch (e) {
+                  if (isRedirectError(e)) throw e
+                  redirect('/registreer?error=dev')
+                }
+              }}
+              className="flex gap-2"
+            >
+              <label htmlFor="dev-reg-email" className="sr-only">Email dev registreer</label>
+              <input
+                id="dev-reg-email"
+                name="email"
+                type="email"
+                defaultValue="test@vaarsamen.nl"
+                className="flex-1 px-3 py-2.5 bg-surface-container-high rounded-xl
+                           text-on-surface text-sm font-body border border-white/10
+                           focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2.5 rounded-xl gradient-primary text-on-primary
+                           font-label text-sm font-bold shadow-glow
+                           active:scale-95 transition-all"
+              >
+                Start
+              </button>
+            </form>
+            <p className="font-label text-xs text-on-surface-variant mt-2">
+              Verwijdert bestaand profiel → altijd onboarding
+            </p>
+          </div>
+        )}
 
       </div>
     </main>

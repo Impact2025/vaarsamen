@@ -28,6 +28,31 @@ if (process.env.RESEND_API_KEY) {
 // Directe email-login in development (geen wachtwoord nodig)
 // NOOIT inschakelen via env var in productie — gebruik NODE_ENV=development op staging
 if (process.env.NODE_ENV !== 'production') {
+  // Dev-register: maakt user aan ZONDER profiel → triggert onboarding flow
+  providers.push(
+    Credentials({
+      id:   'dev-register',
+      name: 'Dev Registreer',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email) return null
+        const email = credentials.email as string
+        let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
+        if (!user) {
+          const [created] = await db.insert(users).values({ email, name: email.split('@')[0] }).returning()
+          user = created
+        }
+        // Verwijder profiel zodat onboarding altijd getriggerd wordt
+        if (user) {
+          await db.delete(profiles).where(eq(profiles.userId, user.id))
+        }
+        return user ? { ...user, isAdmin: false } : null
+      },
+    })
+  )
+
   providers.push(
     Credentials({
       id:   'dev-login',
