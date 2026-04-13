@@ -34,6 +34,40 @@ export const DEMO_ACCOUNTS = [
     label: 'Demo cursist',
     icon:  'school',
   },
+  {
+    id:    'aadde200-0000-0000-0000-000000000021', // BOET_INSTR_JAN_B_ID
+    name:  'Jan Bijker',
+    email: 'jan.bijker.boet@vaarsamen.nl',
+    label: 'Instructeur De Boet',
+    icon:  'person_check',
+  },
+] as const
+
+// ─── ALLE BOET INSTRUCTEURS (kiosk login) ─────────────────────────────────────
+// Gesorteerd op achternaam, zoals aangeleverd door De Boet
+export const BOET_INSTRUCTEURS = [
+  { id: 'aadde200-0000-0000-0000-000000000021', name: 'Jan Bijker',          email: 'jan.bijker.boet@vaarsamen.nl'           },
+  { id: 'aadde200-0000-0000-0001-000000000001', name: 'Loek van Driel',      email: 'loek.vandriel.boet@vaarsamen.nl'        },
+  { id: 'aadde200-0000-0000-0000-000000000022', name: 'Nico Eiselin',        email: 'nico.eiselin.boet@vaarsamen.nl'         },
+  { id: 'aadde200-0000-0000-0001-000000000002', name: 'Willem Groeneveld',   email: 'willem.groeneveld.boet@vaarsamen.nl'    },
+  { id: 'aadde200-0000-0000-0001-000000000003', name: 'Bob Hogervorst',      email: 'bob.hogervorst.boet@vaarsamen.nl'       },
+  { id: 'aadde200-0000-0000-0000-000000000023', name: 'Bart Klinkenberg',    email: 'bart.klinkenberg.boet@vaarsamen.nl'     },
+  { id: 'aadde200-0000-0000-0001-000000000004', name: 'William Klinkenberg', email: 'william.klinkenberg.boet@vaarsamen.nl'  },
+  { id: 'aadde200-0000-0000-0000-000000000024', name: 'Wim Klinkenberg',     email: 'wim.klinkenberg.boet@vaarsamen.nl'      },
+  { id: 'aadde200-0000-0000-0000-000000000025', name: 'Henk Letter',         email: 'henk.letter.boet@vaarsamen.nl'          },
+  { id: 'aadde200-0000-0000-0001-000000000005', name: 'Evelien Meeuwissen',  email: 'evelien.meeuwissen.boet@vaarsamen.nl'   },
+  { id: 'aadde200-0000-0000-0001-000000000017', name: 'Daisy Ooms',          email: 'daisy.ooms.boet@vaarsamen.nl'           },
+  { id: 'aadde200-0000-0000-0001-000000000006', name: 'Marie-José van Rie',  email: 'mariejose.vanrie.boet@vaarsamen.nl'     },
+  { id: 'aadde200-0000-0000-0001-000000000007', name: 'René van Riet',       email: 'rene.vanriet.boet@vaarsamen.nl'         },
+  { id: 'aadde200-0000-0000-0001-000000000008', name: 'Niek van Rijswijk',   email: 'niek.vanrijswijk.boet@vaarsamen.nl'     },
+  { id: 'aadde200-0000-0000-0001-000000000009', name: 'Willem de Ruiter',    email: 'willem.deruiter.boet@vaarsamen.nl'      },
+  { id: 'aadde200-0000-0000-0001-000000000010', name: 'Chris van der Schee', email: 'chris.vanderschee.boet@vaarsamen.nl'    },
+  { id: 'aadde200-0000-0000-0001-000000000011', name: 'René van Schie',      email: 'rene.vanschie.boet@vaarsamen.nl'        },
+  { id: 'aadde200-0000-0000-0001-000000000012', name: 'Willem Smit',         email: 'willem.smit.boet@vaarsamen.nl'          },
+  { id: 'aadde200-0000-0000-0001-000000000013', name: 'Arjan Stander',       email: 'arjan.stander.boet@vaarsamen.nl'        },
+  { id: 'aadde200-0000-0000-0001-000000000014', name: 'Wouter Vermeersch',   email: 'wouter.vermeersch.boet@vaarsamen.nl'    },
+  { id: 'aadde200-0000-0000-0001-000000000015', name: 'Adri van Waas',       email: 'adri.vanwaas.boet@vaarsamen.nl'         },
+  { id: 'aadde200-0000-0000-0001-000000000016', name: 'Marco Warmerdam',     email: 'marco.warmerdam.boet@vaarsamen.nl'      },
 ] as const
 
 const DEMO_COURSE_ID    = 'aadde100-0000-0000-0000-000000000010'
@@ -738,6 +772,22 @@ export async function seedDemo() {
       .onConflictDoUpdate({
         target: [lessonNotes.lessonId, lessonNotes.studentUserId],
         set: { note: sql`excluded.note` },
+      })
+  }
+
+  // 20. Alle Boet instructeurs aanmaken (idempotent — bestaande worden overgeslagen)
+  for (const instr of BOET_INSTRUCTEURS) {
+    await db
+      .insert(users)
+      .values({ id: instr.id, email: instr.email, name: instr.name })
+      .onConflictDoUpdate({ target: users.email, set: { name: instr.name, id: instr.id } })
+
+    await db
+      .insert(schoolMemberships)
+      .values({ schoolId: DEMO_SCHOOL_ID, userId: instr.id, role: 'instructeur' })
+      .onConflictDoUpdate({
+        target: [schoolMemberships.schoolId, schoolMemberships.userId],
+        set: { role: sql`excluded.role`, deletedAt: null },
       })
   }
 
