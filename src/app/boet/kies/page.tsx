@@ -7,6 +7,29 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'De Boet · Kies instructeur' }
 
+async function kiesInstructeur(formData: FormData) {
+  'use server'
+  const userId = formData.get('userId') as string | null
+  if (!userId) redirect('/boet')
+
+  try {
+    await signIn('demo-user', {
+      userId,
+      redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
+    })
+  } catch (e: unknown) {
+    if (isRedirectError(e)) throw e
+    redirect('/boet?error=1')
+  }
+}
+
+async function uitloggen() {
+  'use server'
+  const store = await cookies()
+  store.delete('boet_access')
+  redirect('/boet')
+}
+
 export default async function BoetKiesPage() {
   const cookieStore = await cookies()
   if (cookieStore.get('boet_access')?.value !== 'ok') {
@@ -31,18 +54,8 @@ export default async function BoetKiesPage() {
         {/* Instructeursraster */}
         <div className="grid grid-cols-2 gap-3">
           {BOET_INSTRUCTEURS.map(instr => (
-            <form key={instr.id} action={async () => {
-              'use server'
-              try {
-                await signIn('demo-user', {
-                  userId:     instr.id,
-                  redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
-                })
-              } catch (e: unknown) {
-                if (isRedirectError(e)) throw e
-                redirect('/boet?error=1')
-              }
-            }}>
+            <form key={instr.id} action={kiesInstructeur}>
+              <input type="hidden" name="userId" value={instr.id} />
               <button
                 type="submit"
                 className="w-full px-4 py-4 glass-card rounded-2xl border border-white/8
@@ -59,12 +72,7 @@ export default async function BoetKiesPage() {
         </div>
 
         {/* Terug */}
-        <form action={async () => {
-          'use server'
-          const store = await cookies()
-          store.delete('boet_access')
-          redirect('/boet')
-        }}>
+        <form action={uitloggen}>
           <button
             type="submit"
             className="w-full py-3 text-center font-label text-sm text-on-surface-variant
