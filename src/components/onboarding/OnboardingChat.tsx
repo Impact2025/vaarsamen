@@ -112,7 +112,7 @@ export function OnboardingChat() {
 
     let delay = 0
     msgs.forEach((msg, i) => {
-      const typingMs = Math.min(500 + msg.length * 20, 2200)
+      const typingMs = Math.min(300 + msg.length * 14, 1600)
       const t1 = setTimeout(() => setIsTyping(true),  delay)
       delay += typingMs
       const t2 = setTimeout(() => {
@@ -132,7 +132,7 @@ export function OnboardingChat() {
       'Hoi! Ik ben Lars, jouw gids bij VaarSamen. 👋',
       'We zijn zo klaar — echt maar 5 minuten. Wat is jouw voornaam?',
     ])
-    const t = setTimeout(() => inputRef.current?.focus(), 3000)
+    const t = setTimeout(() => inputRef.current?.focus(), 1800)
     timersRef.current.push(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -412,7 +412,7 @@ export function OnboardingChat() {
 
       {/* ── Input footer ── */}
       <footer className="flex-none bg-surface/95 backdrop-blur-sm border-t border-white/5 px-4 pt-4 pb-6">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={step}
             initial={{ opacity: 0, y: 10 }}

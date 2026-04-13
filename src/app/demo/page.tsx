@@ -1,5 +1,6 @@
 import { signIn, signOut, auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID, DEMO_CURSIST_LISA, BOET_INSTR_JAN_B_ID } from '@/lib/db/seeds/demo'
 import type { Metadata } from 'next'
 
@@ -58,10 +59,15 @@ export default async function DemoPage() {
           {/* Instructeur */}
           <form action={async () => {
             'use server'
-            await signIn('demo-user', {
-              userId:     DEMO_ACCOUNTS[0].id,
-              redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
-            })
+            try {
+              await signIn('demo-user', {
+                userId:     DEMO_ACCOUNTS[0].id,
+                redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
+              })
+            } catch (e: unknown) {
+              if (isRedirectError(e)) throw e
+              redirect('/demo')
+            }
           }}>
             <button type="submit"
               className="w-full flex items-center gap-4 p-4 glass-card rounded-2xl border border-white/8
@@ -88,10 +94,15 @@ export default async function DemoPage() {
           {/* Cursist */}
           <form action={async () => {
             'use server'
-            await signIn('demo-user', {
-              userId:     DEMO_ACCOUNTS[1].id,
-              redirectTo: `/school/${DEMO_SCHOOL_ID}/cursist/${DEMO_CURSIST_LISA}/vorderingen`,
-            })
+            try {
+              await signIn('demo-user', {
+                userId:     DEMO_ACCOUNTS[1].id,
+                redirectTo: `/school/${DEMO_SCHOOL_ID}/cursist/${DEMO_CURSIST_LISA}/vorderingen`,
+              })
+            } catch (e: unknown) {
+              if (isRedirectError(e)) throw e
+              redirect('/demo')
+            }
           }}>
             <button type="submit"
               className="w-full flex items-center gap-4 p-4 glass-card rounded-2xl border border-white/8
@@ -123,10 +134,15 @@ export default async function DemoPage() {
           </p>
           <form action={async () => {
             'use server'
-            await signIn('demo-user', {
-              userId:     BOET_INSTR_JAN_B_ID,
-              redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
-            })
+            try {
+              await signIn('demo-user', {
+                userId:     BOET_INSTR_JAN_B_ID,
+                redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
+              })
+            } catch (e: unknown) {
+              if (isRedirectError(e)) throw e
+              redirect('/demo')
+            }
           }}>
             <button type="submit"
               className="w-full flex items-center gap-4 p-4 glass-card rounded-2xl border border-white/8

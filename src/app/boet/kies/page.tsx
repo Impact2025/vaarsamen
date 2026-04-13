@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { signIn } from '@/lib/auth'
 import { BOET_INSTRUCTEURS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
 import type { Metadata } from 'next'
@@ -32,10 +33,15 @@ export default async function BoetKiesPage() {
           {BOET_INSTRUCTEURS.map(instr => (
             <form key={instr.id} action={async () => {
               'use server'
-              await signIn('demo-user', {
-                userId:     instr.id,
-                redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
-              })
+              try {
+                await signIn('demo-user', {
+                  userId:     instr.id,
+                  redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
+                })
+              } catch (e: unknown) {
+                if (isRedirectError(e)) throw e
+                redirect('/boet?error=1')
+              }
             }}>
               <button
                 type="submit"

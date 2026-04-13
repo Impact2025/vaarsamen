@@ -6,7 +6,7 @@ import Credentials from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
 import { users, accounts, sessions, verificationTokens, profiles } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
+import { DEMO_ACCOUNTS, BOET_INSTRUCTEURS } from '@/lib/db/seeds/demo'
 
 // Expliciet getypeerd zodat NextAuth het juiste type verwacht — geen as any casts nodig
 const providers: NextAuthConfig['providers'] = []
@@ -92,7 +92,9 @@ if (process.env.ALLOW_DEMO_USERS) {
         userId: { label: 'User ID', type: 'text' },
       },
       async authorize(credentials) {
-        const account = DEMO_ACCOUNTS.find(a => a.id === credentials?.userId)
+        const userId = credentials?.userId as string | undefined
+        const account = (DEMO_ACCOUNTS as readonly { id: string; email: string; name: string }[]).find(a => a.id === userId)
+          ?? BOET_INSTRUCTEURS.find(a => a.id === userId)
         if (!account) return null
         return { id: account.id, email: account.email, name: account.name, image: null }
       },
