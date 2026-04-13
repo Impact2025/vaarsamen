@@ -20,6 +20,7 @@ export default auth((req) => {
     || pathname.startsWith('/favicon')
     || pathname === '/manifest.json'
     || pathname === '/sw.js'
+    || pathname === '/theme-init.js'
     || pathname.startsWith('/icons/')
 
   if (isPublicPage || isPublicApi || isStaticFile) {
