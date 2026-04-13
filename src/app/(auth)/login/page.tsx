@@ -2,6 +2,7 @@ import { signIn } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { auth } from '@/lib/auth'
+import { cookies } from 'next/headers'
 import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
 
 export default async function LoginPage({
@@ -89,6 +90,8 @@ export default async function LoginPage({
             action={async (formData: FormData) => {
               'use server'
               const email = formData.get('email') as string
+              const cookieStore = await cookies()
+              cookieStore.set('vs_pending_email', email, { maxAge: 600, sameSite: 'lax', path: '/' })
               await signIn('resend', { email, redirectTo })
             }}
             className="space-y-3"

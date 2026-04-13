@@ -1,6 +1,7 @@
 import { signIn } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
+import { cookies } from 'next/headers'
 
 export default async function RegistreerPage() {
   const session = await auth()
@@ -48,6 +49,8 @@ export default async function RegistreerPage() {
               action={async (formData: FormData) => {
                 'use server'
                 const email = formData.get('email') as string
+                const cookieStore = await cookies()
+                cookieStore.set('vs_pending_email', email, { maxAge: 600, sameSite: 'lax', path: '/' })
                 await signIn('resend', { email, redirectTo: '/onboarding' })
               }}
               className="space-y-3"
