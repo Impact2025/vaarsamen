@@ -14,6 +14,7 @@ export default auth((req) => {
   // Publieke routes: altijd doorlaten
   const isPublicPage = ['/', '/login', '/registreer', '/school/login', '/demo'].includes(pathname)
     || pathname.startsWith('/school/join/')
+    || pathname.startsWith('/boet')
   const isPublicApi  = PUBLIC_API_ROUTES.some(r => pathname.startsWith(r))
   const isStaticFile = pathname.startsWith('/_next')
     || pathname.startsWith('/favicon')
