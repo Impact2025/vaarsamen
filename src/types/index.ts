@@ -18,6 +18,7 @@ export interface Profile {
   photoUrl?:       string
   photoUrls?:      string[]
   city?:           string
+  postcode?:       string
   homePort?:       string
   cwoLevel:        CWOLevel
   cwoVerified:     boolean

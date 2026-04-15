@@ -180,7 +180,7 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
                   className="font-headline font-black text-2xl text-white leading-tight"
                   style={{ textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}
                 >
-                  {profile.displayName}
+                  {profile.displayName}{profile.age ? `, ${profile.age}` : ''}
                 </h2>
                 {profile.homePort && (
                   <div className="flex items-center gap-1 mt-0.5">
@@ -228,6 +228,13 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
               {LOOKING_FOR_LABELS[profile.lookingFor]}
             </span>
           </div>
+
+          {/* Bio */}
+          {profile.bio && (
+            <p className="font-body text-xs text-on-surface/75 line-clamp-2 flex-shrink-0 leading-relaxed">
+              {profile.bio}
+            </p>
+          )}
 
           {/* Boot + vaargebieden */}
           {(profile.boats[0] || visibleAreas.length > 0) && (
