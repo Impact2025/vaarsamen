@@ -58,7 +58,8 @@ export function BottomNav() {
         >
           <div className="flex justify-around items-center px-1 py-1.5 max-w-md mx-auto">
             {NAV_ITEMS.map(({ href, icon, label }) => {
-              const isActive   = pathname === href || pathname.startsWith(`${href}/`)
+              const isActive   = pathname === href || pathname.startsWith(`${href}/`) ||
+                (href === '/berichten' && (pathname === '/matches' || pathname.startsWith('/matches/')))
               const badgeCount = href === '/tochten'   ? tochtenCount
                                : href === '/berichten' ? berichtenCount
                                : 0
