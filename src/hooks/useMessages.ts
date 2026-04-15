@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { getPusherClient, channels, events } from '@/lib/pusher'
+import { getPusherClient, channels, events } from '@/lib/pusher-client'
 import type { Message } from '@/types'
 
 export function useMessages(matchId: string, initialMessages: Message[]) {
@@ -9,12 +9,13 @@ export function useMessages(matchId: string, initialMessages: Message[]) {
   const [sending, setSending]   = useState(false)
 
   useEffect(() => {
-    const pusher  = getPusherClient()
+    const pusher = getPusherClient()
+    if (!pusher) return  // Pusher niet geconfigureerd — real-time uitgeschakeld
+
     const channel = pusher.subscribe(channels.match(matchId))
 
     channel.bind(events.newMessage, (data: { message: Message }) => {
       setMessages(prev => {
-        // Voorkom duplicaten
         if (prev.some(m => m.id === data.message.id)) return prev
         return [...prev, data.message]
       })

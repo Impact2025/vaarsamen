@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { pusherServer } from '@/lib/pusher'
+import { getPusherServerInstance } from '@/lib/pusher-server'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
 import { db } from '@/lib/db'
 import { matches } from '@/lib/db/schema'
@@ -53,6 +53,9 @@ export async function POST(req: Request) {
     }
   }
 
-  const authResponse = pusherServer.authorizeChannel(socketId, channelName)
+  const pusher = getPusherServerInstance()
+  if (!pusher) return new Response('Pusher niet geconfigureerd', { status: 503 })
+
+  const authResponse = pusher.authorizeChannel(socketId, channelName)
   return Response.json(authResponse)
 }

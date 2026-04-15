@@ -4,7 +4,7 @@ import { messageSchema } from '@/lib/validations'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
 import { getMatchMessages, markMessagesAsRead } from '@/lib/db/queries/matches'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { pusherServer, channels, events } from '@/lib/pusher'
+import { pusherTrigger, channels, events } from '@/lib/pusher-server'
 import { db } from '@/lib/db'
 import { messages, matches } from '@/lib/db/schema'
 import { and, eq, or } from 'drizzle-orm'
@@ -76,7 +76,7 @@ export async function POST(
 
   // Realtime: stuur naar match channel na response (blokkeert response niet)
   after(async () => {
-    await pusherServer.trigger(channels.match(matchId), events.newMessage, { message })
+    await pusherTrigger(channels.match(matchId), events.newMessage, { message })
   })
 
   return Response.json({ message }, { status: 201 })

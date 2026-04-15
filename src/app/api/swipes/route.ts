@@ -5,7 +5,7 @@ import { swipeSchema } from '@/lib/validations'
 import { recordSwipeAtomic } from '@/lib/db/queries/swipes'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { pusherServer, channels, events } from '@/lib/pusher'
+import { pusherTrigger, channels, events } from '@/lib/pusher-server'
 
 export async function POST(req: Request) {
   // Rate limiting op IP
@@ -50,8 +50,8 @@ export async function POST(req: Request) {
       const matchId = result.matchId
       after(async () => {
         await Promise.all([
-          pusherServer.trigger(channels.user(profile.id), events.newMatch, { matchId }),
-          pusherServer.trigger(channels.user(swipedId),   events.newMatch, { matchId }),
+          pusherTrigger(channels.user(profile.id), events.newMatch, { matchId }),
+          pusherTrigger(channels.user(swipedId),   events.newMatch, { matchId }),
         ])
       })
     }
