@@ -24,6 +24,7 @@ export const profileCreateSchema = z.object({
   displayName:    z.string().min(2, 'Naam moet minimaal 2 tekens zijn').max(50),
   age:            z.number().int().min(16, 'Minimale leeftijd is 16 jaar').max(99).optional(),
   bio:            z.string().max(300, 'Bio mag maximaal 300 tekens zijn').optional(),
+  photoUrl:       z.string().url().optional().nullable(),
   postcode:       z.string().regex(/^\d{4}\s?[A-Za-z]{2}$/, 'Voer een geldige postcode in (bijv. 1234 AB)').optional(),
   city:           z.string().max(100).optional(),
   province:       z.string().max(100).optional(),
