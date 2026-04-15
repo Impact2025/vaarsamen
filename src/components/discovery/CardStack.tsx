@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { SwipeCard } from './SwipeCard'
 import { SwipeCardSkeleton } from '@/components/ui/Skeleton'
@@ -11,7 +12,18 @@ interface CardStackProps {
   isLoading?: boolean
 }
 
+const cardVariants = {
+  exit: (dir: 'left' | 'right') => ({
+    x:       dir === 'right' ? 600 : -600,
+    rotate:  dir === 'right' ? 18 : -18,
+    opacity: 0,
+    transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as const },
+  }),
+}
+
 export function CardStack({ profiles, onSwipe, isLoading }: CardStackProps) {
+  const [swipeDir, setSwipeDir] = useState<'left' | 'right'>('right')
+
   if (isLoading) return <SwipeCardSkeleton />
 
   if (profiles.length === 0) {
@@ -30,27 +42,30 @@ export function CardStack({ profiles, onSwipe, isLoading }: CardStackProps) {
     )
   }
 
+  const handleSwipe = (profileId: string, dir: 'left' | 'right') => {
+    setSwipeDir(dir)
+    onSwipe(profileId, dir)
+  }
+
   return (
     <div className="relative w-full h-full" aria-live="polite" aria-atomic="false">
-      <AnimatePresence>
+      <AnimatePresence custom={swipeDir}>
         {profiles.slice(0, 3).map((profile, index) => (
           <motion.div
             key={profile.id}
             className="absolute inset-0"
             style={{
-              zIndex:    profiles.length - index,
-              scale:     1 - index * 0.04,
+              zIndex:     profiles.length - index,
+              scale:      1 - index * 0.04,
               translateY: index * 12,
             }}
-            exit={{
-              x:       500,
-              opacity: 0,
-              transition: { duration: 0.3 },
-            }}
+            custom={swipeDir}
+            variants={cardVariants}
+            exit="exit"
           >
             <SwipeCard
               profile={profile}
-              onSwipe={(dir) => onSwipe(profile.id, dir)}
+              onSwipe={(dir) => handleSwipe(profile.id, dir)}
               isTop={index === 0}
             />
           </motion.div>

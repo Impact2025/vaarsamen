@@ -17,6 +17,37 @@ const LOOKING_FOR_ICON: Record<LookingFor, string> = {
   alles:        'all_inclusive',
 }
 
+function ProfilePlaceholder({ name }: { name: string }) {
+  const initials = name
+    .split(' ')
+    .slice(0, 2)
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+
+  return (
+    <div
+      className="w-full h-full flex items-center justify-center"
+      style={{ background: 'linear-gradient(160deg, #0c4a6e 0%, #065f46 100%)' }}
+    >
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-28 h-28 rounded-full border border-white/20 bg-white/10 flex items-center justify-center">
+          <span className="font-headline font-black text-5xl text-white/90 select-none leading-none">
+            {initials}
+          </span>
+        </div>
+        <span
+          className="material-symbols-outlined text-3xl text-white/25"
+          style={{ fontVariationSettings: "'FILL' 1" }}
+          aria-hidden="true"
+        >
+          sailing
+        </span>
+      </div>
+    </div>
+  )
+}
+
 interface SwipeCardProps {
   profile: Profile
   onSwipe: (direction: 'left' | 'right') => void
@@ -26,8 +57,8 @@ interface SwipeCardProps {
 export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
   const x      = useMotionValue(0)
   const rotate = useTransform(x, [-200, 200], [-12, 12])
-  const likeOp = useTransform(x, [0, 100],   [0, 1])
-  const passOp = useTransform(x, [-100, 0],  [1, 0])
+  const likeOp = useTransform(x, [0, 80],   [0, 1])
+  const passOp = useTransform(x, [-80, 0],  [1, 0])
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     if (Math.abs(info.offset.x) > 120) {
@@ -61,26 +92,34 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
       {/* Swipe-overlay: AAN BOORD */}
       <motion.div
         aria-hidden="true"
-        className="absolute top-6 left-6 z-30 rotate-[-15deg] border-[3px] border-primary rounded-2xl px-4 py-1.5"
+        className="absolute top-7 left-6 z-30 rotate-[-12deg]"
         style={{ opacity: likeOp }}
       >
-        <span className="font-headline font-black text-primary text-lg tracking-tight">AAN BOORD ⛵</span>
+        <div className="border-[3px] border-primary rounded-2xl px-4 py-1.5 bg-primary/10 backdrop-blur-sm">
+          <span className="font-headline font-black text-primary text-lg tracking-tight">
+            AAN BOORD ⛵
+          </span>
+        </div>
       </motion.div>
 
       {/* Swipe-overlay: VOLGENDE */}
       <motion.div
         aria-hidden="true"
-        className="absolute top-6 right-6 z-30 rotate-[15deg] border-[3px] border-error/80 rounded-2xl px-4 py-1.5"
+        className="absolute top-7 right-6 z-30 rotate-[12deg]"
         style={{ opacity: passOp }}
       >
-        <span className="font-headline font-black text-error text-lg tracking-tight">VOLGENDE →</span>
+        <div className="border-[3px] border-error rounded-2xl px-4 py-1.5 bg-error/10 backdrop-blur-sm">
+          <span className="font-headline font-black text-error text-lg tracking-tight">
+            VOLGENDE →
+          </span>
+        </div>
       </motion.div>
 
-      {/* Kaart: foto bovenin, activiteitsinfo onderaan */}
+      {/* Kaart */}
       <div className="w-full h-full rounded-card overflow-hidden shadow-deep bg-surface-container flex flex-col">
 
-        {/* ── FOTO (43% hoogte) ─────────────────────────── */}
-        <div className="relative flex-shrink-0" style={{ height: '43%' }}>
+        {/* ── FOTO (58%) ─────────────────────────────────────── */}
+        <div className="relative flex-shrink-0" style={{ height: '58%' }}>
           {profile.photoUrl ? (
             <Image
               src={profile.photoUrl}
@@ -91,14 +130,14 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
               sizes="(max-width: 768px) 100vw, 448px"
             />
           ) : (
-            <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
-              <span className="material-symbols-outlined text-7xl text-on-surface-variant" aria-hidden="true">
-                account_circle
-              </span>
-            </div>
+            <ProfilePlaceholder name={profile.displayName} />
           )}
 
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/30" aria-hidden="true" />
+          {/* Gradient — sterk onderaan voor naam-leesbaarheid */}
+          <div
+            className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80"
+            aria-hidden="true"
+          />
 
           {/* CWO badge */}
           {profile.cwoLevel !== 'geen' && (
@@ -132,41 +171,50 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
               </span>
             </div>
           </div>
-        </div>
 
-        {/* ── ACTIVITEITSINFO (rest) ────────────────────── */}
-        <div className="flex-1 flex flex-col gap-3 p-4 overflow-hidden">
-
-          {/* Naam + thuishaven + rating */}
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="font-headline font-extrabold text-xl text-on-surface leading-tight">
-                {profile.displayName}
-              </h2>
-              {profile.homePort && (
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="material-symbols-outlined text-xs text-on-surface-variant" aria-hidden="true">anchor</span>
-                  <span className="font-label text-xs text-on-surface-variant uppercase tracking-wider">
-                    {profile.homePort}
+          {/* Naam + thuishaven + rating — overlaid onderaan de foto */}
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
+            <div className="flex items-end justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <h2
+                  className="font-headline font-black text-2xl text-white leading-tight"
+                  style={{ textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}
+                >
+                  {profile.displayName}
+                </h2>
+                {profile.homePort && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="material-symbols-outlined text-xs text-white/75" aria-hidden="true">
+                      anchor
+                    </span>
+                    <span className="font-label text-xs text-white/75 uppercase tracking-wider">
+                      {profile.homePort}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {profile.averageRating && (
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm border border-white/15 flex-shrink-0">
+                  <span
+                    className="material-symbols-outlined text-xs text-yellow-400"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                    aria-hidden="true"
+                  >star</span>
+                  <span className="font-label text-sm font-bold text-white">
+                    {profile.averageRating.toFixed(1)}
                   </span>
                 </div>
               )}
             </div>
-            {profile.averageRating && (
-              <div className="flex items-center gap-1 px-2.5 py-1 glass-card rounded-full border border-white/10 flex-shrink-0 ml-2">
-                <span
-                  className="material-symbols-outlined text-xs text-primary"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                  aria-hidden="true"
-                >star</span>
-                <span className="font-label text-xs font-bold text-primary">{profile.averageRating.toFixed(1)}</span>
-              </div>
-            )}
           </div>
+        </div>
 
-          {/* Wat zoekt deze zeiler — de primaire CTA */}
+        {/* ── CONTENT (42%) ──────────────────────────────────── */}
+        <div className="flex-1 flex flex-col gap-2 px-4 py-3 overflow-hidden min-h-0">
+
+          {/* Wat zoekt deze zeiler — primaire CTA */}
           <div
-            className="flex items-center gap-2.5 gradient-primary rounded-2xl px-4 py-2.5 shadow-glow"
+            className="flex items-center gap-2.5 gradient-primary rounded-2xl px-4 py-2.5 shadow-glow flex-shrink-0"
             aria-label={`Zoekt: ${LOOKING_FOR_LABELS[profile.lookingFor]}`}
           >
             <span
@@ -182,26 +230,28 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
           </div>
 
           {/* Boot + vaargebieden */}
-          <div className="flex flex-wrap gap-1.5" role="list" aria-label="Boot en vaargebieden">
-            {profile.boats[0] && (
-              <div role="listitem" className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/10 glass-card">
-                <span className="material-symbols-outlined text-xs text-secondary" aria-hidden="true">sailing</span>
-                <span className="font-label text-xs font-bold text-secondary">
-                  {BOAT_LABELS[profile.boats[0].type]}
-                </span>
-              </div>
-            )}
-            {visibleAreas.map(area => (
-              <div key={area} role="listitem" className="px-3 py-1.5 rounded-full border border-white/10 glass-card">
-                <span className="font-label text-xs text-on-surface-variant">{area}</span>
-              </div>
-            ))}
-          </div>
+          {(profile.boats[0] || visibleAreas.length > 0) && (
+            <div className="flex flex-wrap gap-1.5 flex-shrink-0" role="list" aria-label="Boot en vaargebieden">
+              {profile.boats[0] && (
+                <div role="listitem" className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/10 glass-card">
+                  <span className="material-symbols-outlined text-xs text-secondary" aria-hidden="true">sailing</span>
+                  <span className="font-label text-xs font-bold text-secondary">
+                    {BOAT_LABELS[profile.boats[0].type]}
+                  </span>
+                </div>
+              )}
+              {visibleAreas.map(area => (
+                <div key={area} role="listitem" className="px-3 py-1.5 rounded-full border border-white/10 glass-card">
+                  <span className="font-label text-xs text-on-surface-variant">{area}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Vaardigheden */}
           {profile.skillTags.length > 0 && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar mt-auto" role="list" aria-label="Vaardigheden">
-              {profile.skillTags.slice(0, 3).map(tag => (
+              {profile.skillTags.slice(0, 4).map(tag => (
                 <div key={tag} role="listitem" className="flex-shrink-0 px-3 py-1 rounded-xl border border-white/5 glass-card">
                   <span className="font-label text-xs text-on-surface/70">{tag}</span>
                 </div>

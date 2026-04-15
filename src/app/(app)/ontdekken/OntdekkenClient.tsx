@@ -33,7 +33,10 @@ export function OntdekkenClient({ initialProfiles, myProfile, initialSwipesRemai
             Beschikbare zeilers
           </h1>
           <p className="font-label text-xs text-on-surface-variant mt-0.5">
-            Op basis van jouw voorkeuren
+            {profiles.length > 0
+              ? `${profiles.length} zeiler${profiles.length !== 1 ? 's' : ''} in de buurt`
+              : 'Op basis van jouw voorkeuren'
+            }
           </p>
         </div>
         {swipesRemaining < 20 && (
