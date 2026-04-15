@@ -28,6 +28,6 @@ export async function POST() {
     path:     '/',
   })
 
-  revalidateTag('profiles')
+  revalidateTag('profiles', 'max')
   return Response.json({ success: true })
 }
