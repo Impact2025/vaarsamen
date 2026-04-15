@@ -4,7 +4,7 @@ import { getProfileByUserId } from '@/lib/db/queries/profiles'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'image/avif']
 
 /** Verwijder path-traversal tekens en beperk tot veilige karakters */
 function sanitizeFilename(name: string): string {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   if (!file) return Response.json({ error: 'Geen bestand meegestuurd' }, { status: 400 })
   if (file.size > MAX_FILE_SIZE) return Response.json({ error: 'Bestand te groot (max 5MB)' }, { status: 400 })
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return Response.json({ error: 'Ongeldig bestandstype. Gebruik JPG, PNG, WebP of GIF.' }, { status: 400 })
+    return Response.json({ error: 'Ongeldig bestandstype. Gebruik JPG, PNG, WebP, HEIC of AVIF.' }, { status: 400 })
   }
 
   const profile = await getProfileByUserId(session.user.id)

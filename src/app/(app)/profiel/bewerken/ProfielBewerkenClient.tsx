@@ -74,7 +74,7 @@ export default function ProfielBewerkenClient({ profile }: { profile: ProfileDat
       const res  = await fetch('/api/upload', { method: 'POST', body: form })
       const data = await res.json()
       if (data.url) setPhotoUrl(data.url)
-      else setError('Upload mislukt, probeer opnieuw.')
+      else setError(data.error ?? 'Upload mislukt, probeer opnieuw.')
     } catch {
       setError('Upload mislukt, probeer opnieuw.')
     } finally {
@@ -102,7 +102,10 @@ export default function ProfielBewerkenClient({ profile }: { profile: ProfileDat
       })
       if (!res.ok) {
         const body = await res.json()
-        throw new Error(body.error ?? 'Opslaan mislukt')
+        const msg = typeof body.error === 'string'
+          ? body.error
+          : (body.message ?? 'Opslaan mislukt')
+        throw new Error(msg)
       }
       router.push('/profiel')
       router.refresh()
@@ -134,7 +137,7 @@ export default function ProfielBewerkenClient({ profile }: { profile: ProfileDat
         <label htmlFor="photo-upload" className="relative cursor-pointer group" aria-label="Profielfoto wijzigen">
           <div className="w-28 h-28 rounded-[1.8rem] overflow-hidden bg-surface-container-high
                           border-2 border-dashed border-primary/30 group-hover:border-primary/60
-                          flex items-center justify-center transition-all">
+                          flex items-center justify-center transition-all relative">
             {photoUrl ? (
               <Image src={photoUrl} alt="Profielfoto" fill className="object-cover" sizes="112px" />
             ) : (
@@ -144,6 +147,13 @@ export default function ProfielBewerkenClient({ profile }: { profile: ProfileDat
                 </span>
                 <span className="font-label text-[10px] text-on-surface-variant">
                   {uploading ? 'Uploaden...' : 'Foto'}
+                </span>
+              </div>
+            )}
+            {uploading && photoUrl && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <span className="material-symbols-outlined text-white text-2xl animate-spin" aria-hidden="true">
+                  progress_activity
                 </span>
               </div>
             )}
