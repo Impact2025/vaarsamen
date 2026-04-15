@@ -35,10 +35,17 @@ export async function POST(req: Request) {
   const profile = await getProfileByUserId(session.user.id)
   const folder  = profile ? `avatars/${profile.id}` : `temp/${session.user.id}`
 
-  const blob = await put(`${folder}/${Date.now()}-${sanitizeFilename(file.name)}`, file, {
-    access:      'public',
-    contentType: file.type, // altijd server-gevalideerd MIME type, nooit client-hint
-  })
-
-  return Response.json({ url: blob.url })
+  try {
+    const blob = await put(`${folder}/${Date.now()}-${sanitizeFilename(file.name)}`, file, {
+      access:      'public',
+      contentType: file.type, // altijd server-gevalideerd MIME type, nooit client-hint
+    })
+    return Response.json({ url: blob.url })
+  } catch (err) {
+    console.error('[upload] Vercel Blob fout:', err)
+    return Response.json(
+      { error: 'Upload mislukt — controleer of BLOB_READ_WRITE_TOKEN is ingesteld in Vercel.' },
+      { status: 500 }
+    )
+  }
 }
