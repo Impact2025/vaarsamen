@@ -1,9 +1,20 @@
 import { z } from 'zod'
 
+// ─── UUID HELPER ──────────────────────────────────────────────────────────────
+// Zod v4 gebruikt strikte RFC 4122 UUID validatie (versie 1-8, variant 8/9/a/b).
+// Onze demo-seeds gebruiken custom IDs (bijv. aadde200-0000-0000-0000-...) die
+// geldig zijn voor PostgreSQL maar niet voldoen aan RFC 4122. We valideren alleen
+// het formaat (8-4-4-4-12 hex), niet de versie/variant-bits.
+const pgUuid = (msg?: string) =>
+  z.string().regex(
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i,
+    msg ?? 'Ongeldig ID',
+  )
+
 // ─── SWIPES ───────────────────────────────────────────────────────────────────
 
 export const swipeSchema = z.object({
-  swipedId: z.string().uuid('Ongeldig profiel ID'),
+  swipedId: pgUuid('Ongeldig profiel ID'),
   action:   z.enum(['like', 'pass', 'superlike']),
 })
 
@@ -49,8 +60,8 @@ export const messageSchema = z.object({
 // ─── REVIEWS ──────────────────────────────────────────────────────────────────
 
 export const reviewSchema = z.object({
-  matchId:     z.string().uuid(),
-  revieweeId:  z.string().uuid(),
+  matchId:     pgUuid(),
+  revieweeId:  pgUuid(),
   rating:      z.number().int().min(1).max(5),
   text:        z.string().max(500).optional(),
   sailedDate:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Gebruik formaat YYYY-MM-DD').optional(),
@@ -59,7 +70,7 @@ export const reviewSchema = z.object({
 // ─── RAPPORTAGES ──────────────────────────────────────────────────────────────
 
 export const reportSchema = z.object({
-  reportedId:  z.string().uuid(),
+  reportedId:  pgUuid(),
   reason:      z.enum(['ongepast_gedrag', 'nep_profiel', 'spam', 'minderjarig', 'anders']),
   description: z.string().max(500).optional(),
 })
@@ -123,11 +134,11 @@ export const schoolCourseSchema = z.object({
 // ─── LES ──────────────────────────────────────────────────────────────────────
 
 export const schoolLesSchema = z.object({
-  courseId:     z.string().uuid('Ongeldig cursus ID'),
+  courseId:     pgUuid('Ongeldig cursus ID'),
   datum:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Gebruik formaat YYYY-MM-DD'),
   windRichting: z.string().max(5).optional(),            // "ZW", "NNO" etc.
   windKracht:   z.number().int().min(0).max(12).optional(),
-  studentIds:   z.array(z.string().uuid()).min(1, 'Selecteer minimaal 1 cursist'),
+  studentIds:   z.array(pgUuid()).min(1, 'Selecteer minimaal 1 cursist'),
 })
 
 // ─── BEOORDELINGEN (bulk AMRB) ────────────────────────────────────────────────
@@ -135,13 +146,13 @@ export const schoolLesSchema = z.object({
 export const skillScoreEnum = z.enum(['aangeboden', 'matig', 'redelijk', 'beheerst'])
 
 export const singleAssessmentSchema = z.object({
-  skillId: z.string().uuid('Ongeldig vaardigheid ID'),
+  skillId: pgUuid('Ongeldig vaardigheid ID'),
   score:   skillScoreEnum,
 })
 
 export const bulkAssessmentSchema = z.object({
-  studentUserId: z.string().uuid('Ongeldig cursist ID'),
-  bootId:        z.string().uuid().optional().nullable(),
+  studentUserId: pgUuid('Ongeldig cursist ID'),
+  bootId:        pgUuid().optional().nullable(),
   soloGevaren:   z.boolean().default(false),
   scores:        z.array(singleAssessmentSchema),
 })
@@ -149,7 +160,7 @@ export const bulkAssessmentSchema = z.object({
 // ─── LES OPMERKING ────────────────────────────────────────────────────────────
 
 export const lessonNoteSchema = z.object({
-  studentUserId: z.string().uuid('Ongeldig cursist ID'),
+  studentUserId: pgUuid('Ongeldig cursist ID'),
   note:          z.string().min(1, 'Opmerking mag niet leeg zijn').max(1000),
 })
 

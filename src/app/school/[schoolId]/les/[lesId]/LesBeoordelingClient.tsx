@@ -295,7 +295,14 @@ export function LesBeoordelingClient({ detail, schoolId }: Props) {
 
       if (!assessRes.ok) {
         const d = await assessRes.json()
-        throw new Error(d.error?.toString() ?? 'Fout bij opslaan beoordelingen')
+        // Zod flatten() geeft een object terug — extraheer de eerste foutmelding
+        const err = d.error
+        if (err && typeof err === 'object') {
+          const fieldMsgs = Object.values(err.fieldErrors ?? {}).flat() as string[]
+          const formMsgs  = (err.formErrors ?? []) as string[]
+          throw new Error([...formMsgs, ...fieldMsgs][0] ?? 'Fout bij opslaan beoordelingen')
+        }
+        throw new Error(typeof err === 'string' ? err : 'Fout bij opslaan beoordelingen')
       }
 
       // Opmerking opslaan (alleen als niet leeg)
