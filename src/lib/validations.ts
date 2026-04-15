@@ -143,7 +143,7 @@ export const bulkAssessmentSchema = z.object({
   studentUserId: z.string().uuid('Ongeldig cursist ID'),
   bootId:        z.string().uuid().optional().nullable(),
   soloGevaren:   z.boolean().default(false),
-  scores:        z.array(singleAssessmentSchema).min(1, 'Geef minimaal 1 beoordeling op'),
+  scores:        z.array(singleAssessmentSchema),
 })
 
 // ─── LES OPMERKING ────────────────────────────────────────────────────────────

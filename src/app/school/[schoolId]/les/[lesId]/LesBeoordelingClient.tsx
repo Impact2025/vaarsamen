@@ -151,6 +151,23 @@ interface Props {
 export function LesBeoordelingClient({ detail, schoolId }: Props) {
   const { les, fleet, skills, students } = detail
 
+  const [windRichting, setWindRichting] = useState(les.windRichting ?? '')
+  const [windKracht,   setWindKracht]   = useState(les.windKracht != null ? String(les.windKracht) : '')
+  const [windSaving,   setWindSaving]   = useState(false)
+
+  const saveWind = async () => {
+    setWindSaving(true)
+    await fetch(`/api/school/${schoolId}/lessen/${les.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        windRichting: windRichting.trim().toUpperCase() || null,
+        windKracht:   windKracht ? Number(windKracht) : null,
+      }),
+    })
+    setWindSaving(false)
+  }
+
   const [studentStates, setStudentStates] = useState<Record<string, StudentState>>(() =>
     Object.fromEntries(students.map(s => [s.userId, {
       ...s,
@@ -324,19 +341,37 @@ export function LesBeoordelingClient({ detail, schoolId }: Props) {
             </h1>
             <p className="font-body text-sm text-on-surface-variant mt-0.5">{les.course.name}</p>
           </div>
-          <div className="text-right flex-shrink-0">
-            {les.windRichting && les.windKracht !== null && (
-              <div className="flex items-center gap-1.5 justify-end">
-                <span className="material-symbols-outlined text-primary text-lg" aria-hidden="true">air</span>
-                <span className="font-label font-semibold text-on-surface">
-                  {les.windRichting} {les.windKracht} Bft
-                </span>
-              </div>
-            )}
-            <p className="font-label text-xs text-on-surface-variant mt-1">
-              {students.length} cursisten · {totalScored} beoordeeld
-            </p>
-          </div>
+          <p className="font-label text-xs text-on-surface-variant mt-1 text-right flex-shrink-0">
+            {students.length} cursisten · {totalScored} beoordeeld
+          </p>
+        </div>
+
+        {/* Wind invoer */}
+        <div className="flex items-center gap-2 mt-3">
+          <span className="material-symbols-outlined text-primary text-base flex-shrink-0" aria-hidden="true">air</span>
+          <input
+            type="text"
+            value={windRichting}
+            onChange={e => setWindRichting(e.target.value.toUpperCase())}
+            onBlur={saveWind}
+            placeholder="ZW"
+            maxLength={5}
+            aria-label="Windrichting"
+            className="w-16 px-2 py-1 rounded-lg bg-surface border border-white/10 text-on-surface font-body text-sm text-center focus:outline-none focus:border-primary/60"
+          />
+          <input
+            type="number"
+            value={windKracht}
+            onChange={e => setWindKracht(e.target.value)}
+            onBlur={saveWind}
+            placeholder="Bft"
+            min={0} max={12}
+            aria-label="Windkracht in Beaufort"
+            className="w-16 px-2 py-1 rounded-lg bg-surface border border-white/10 text-on-surface font-body text-sm text-center focus:outline-none focus:border-primary/60"
+          />
+          <span className="font-label text-xs text-on-surface-variant">
+            {windSaving ? 'opslaan…' : 'Bft'}
+          </span>
         </div>
 
         {/* Acties: opslaan + lesvoorbereiding */}

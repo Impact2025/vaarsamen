@@ -82,7 +82,8 @@ export function OntdekkenClient({ initialProfiles, myProfile, initialSwipesRemai
         </div>
       )}
 
-      <div className="h-6" />
+      {/* Ruimte boven de BottomNav */}
+      <div className="h-20" />
 
       {/* Match modal */}
       {matchedProfile && matchId && (

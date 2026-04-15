@@ -353,7 +353,11 @@ function computeTooltipPos(
   const EST_H = 210
 
   if (!rect || placement === 'center' || !win.w) {
-    return { top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }
+    // Gebruik exacte pixelwaarden — Framer Motion overschrijft 'transform',
+    // waardoor translate(-50%,-50%) niet betrouwbaar werkt voor centering.
+    const w    = Math.min(MAX_W, win.w - H_PAD * 2)
+    const left = (win.w - w) / 2
+    return { top: win.h / 2 - EST_H / 2, left, width: w }
   }
 
   const w    = Math.min(MAX_W, win.w - H_PAD * 2)
