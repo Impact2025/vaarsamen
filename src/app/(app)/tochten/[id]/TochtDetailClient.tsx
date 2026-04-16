@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { SAILING_AREAS, BOAT_LABELS, CWO_LABELS, GEBIED_COLOR_HEX } from '@/types'
+import { SAILING_AREAS, BOAT_LABELS, CWO_LABELS } from '@/types'
 import { format, parseISO, isToday, isTomorrow } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { TochtDetail } from '@/lib/db/queries/tochten'
@@ -38,7 +38,6 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
   const datumLabel  = isToday(datum) ? 'Vandaag' : isTomorrow(datum) ? 'Morgen'
     : format(datum, 'EEEE d MMMM yyyy', { locale: nl })
   const gebiedLabel = SAILING_AREAS.find(a => a.id === tocht.vaargebied)?.label ?? tocht.vaargebied
-  const kleur       = GEBIED_COLOR_HEX[tocht.vaargebied] ?? '#46f1c5'
 
   const myAanmelding  = localAanmeldingen.find(a => a.profiel.id === myProfileId)
   const canAanmelden  = !isPoster && !myAanmelding && tocht.status === 'open'
@@ -151,33 +150,30 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
         </button>
       </header>
 
-      {/* Kleur hero balk */}
-      <div className="h-1.5 w-full rounded-full mb-5" style={{ background: `linear-gradient(90deg, ${kleur}, ${kleur}66)` }} />
+      {/* Scheidingslijn */}
+      <div className="h-px w-full bg-white/10 mb-5" />
 
       {/* Datum + tijd + gebied */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {/* Datum — neutraal, geen gebiedskleur */}
         <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high border border-white/10 font-label text-xs font-black text-on-surface capitalize">
-          📅 {datumLabel}
+          <span className="material-symbols-outlined text-xs text-on-surface-variant" aria-hidden="true">calendar_today</span>
+          {datumLabel}
         </span>
         {tocht.vertrekTijd && (
-          <span className="px-3 py-1.5 rounded-full bg-surface-container border border-white/10 font-label text-xs text-on-surface-variant">
-            🕘 {tocht.vertrekTijd} vertrek
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container border border-white/10 font-label text-xs text-on-surface-variant">
+            <span className="material-symbols-outlined text-xs" aria-hidden="true">schedule</span>
+            {tocht.vertrekTijd} vertrek
           </span>
         )}
-        {/* Gebied — wél de gebiedskleur, dat hoort hier */}
-        <span
-          className="px-3 py-1.5 rounded-full font-label text-xs font-semibold"
-          style={{ backgroundColor: kleur + '22', border: `1px solid ${kleur}44`, color: kleur }}
-        >
-          🗺️ {gebiedLabel}
+        <span className="px-3 py-1.5 rounded-full bg-surface-container border border-white/10 font-label text-xs text-on-surface-variant">
+          {gebiedLabel}
         </span>
       </div>
 
       {/* Locatie met Google Maps link */}
       {tocht.locatie && (
         <div className="flex items-center gap-2 mb-4">
-          <span aria-hidden="true">📍</span>
+          <span className="material-symbols-outlined text-sm text-on-surface-variant flex-shrink-0" aria-hidden="true">location_on</span>
           {mapsUrl ? (
             <a
               href={mapsUrl}
@@ -198,21 +194,20 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
       <div className="flex flex-wrap gap-2 mb-5">
         {tocht.bootType && (
           <span className="px-3 py-1 rounded-full bg-surface-container-high border border-white/10 font-label text-xs text-on-surface-variant">
-            ⛵ {BOAT_LABELS[tocht.bootType as keyof typeof BOAT_LABELS]}
+            {BOAT_LABELS[tocht.bootType as keyof typeof BOAT_LABELS]}
           </span>
         )}
         {tocht.cwoMinimum && tocht.cwoMinimum !== 'geen' && (
           <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 font-label text-xs text-primary">
-            🎓 min. {CWO_LABELS[tocht.cwoMinimum as keyof typeof CWO_LABELS]}
+            min. {CWO_LABELS[tocht.cwoMinimum as keyof typeof CWO_LABELS]}
           </span>
         )}
         <span className="px-3 py-1 rounded-full bg-surface-container-high border border-white/10 font-label text-xs text-on-surface-variant">
-          👥 {tocht.aantalPlaatsen} {tocht.aantalPlaatsen === 1 ? 'plek' : 'plekken'}
+          {tocht.aantalPlaatsen} {tocht.aantalPlaatsen === 1 ? 'plek' : 'plekken'}
         </span>
         {localAanmeldingen.length > 0 && (
-          <span className="px-3 py-1 rounded-full border font-label text-xs font-bold"
-            style={{ backgroundColor: kleur + '22', borderColor: kleur + '44', color: kleur }}>
-            📋 {localAanmeldingen.length} {localAanmeldingen.length === 1 ? 'aanmelding' : 'aanmeldingen'}
+          <span className="px-3 py-1 rounded-full bg-surface-container-high border border-white/10 font-label text-xs text-on-surface-variant">
+            {localAanmeldingen.length} {localAanmeldingen.length === 1 ? 'aanmelding' : 'aanmeldingen'}
           </span>
         )}
       </div>
@@ -285,7 +280,7 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
                     : 'border border-white/10 text-on-surface-variant hover:border-white/20 disabled:opacity-50'
                   }`}
               >
-                {s === 'open' ? '🟢 Open' : s === 'vol' ? '🟡 Vol' : '🔴 Geannuleerd'}
+                {s === 'open' ? 'Open' : s === 'vol' ? 'Vol' : 'Geannuleerd'}
               </button>
             ))}
           </div>
@@ -405,8 +400,8 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
                           aanmelding.status === 'afgewezen'   ? 'bg-error/10 text-error' :
                           'bg-surface-container-high text-on-surface-variant'}`}
                         >
-                          {aanmelding.status === 'geaccepteerd' ? '✓ Geaccepteerd' :
-                           aanmelding.status === 'afgewezen'   ? '✕ Afgewezen' : '⏳ Wachtend'}
+                          {aanmelding.status === 'geaccepteerd' ? 'Geaccepteerd' :
+                           aanmelding.status === 'afgewezen'   ? 'Afgewezen' : 'Wachtend'}
                         </span>
                       </div>
                       {profiel.cwoLevel && profiel.cwoLevel !== 'geen' && (
@@ -458,7 +453,7 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
         return (
           <section className="mb-6" aria-label="Reviews schrijven">
             <h2 className="font-headline font-bold text-lg text-on-surface mb-3">
-              {reviewedIds.size > 0 && reviewTargets.length === 0 ? '⭐ Reviews verstuurd!' : '⭐ Hoe was de tocht?'}
+              {reviewedIds.size > 0 && reviewTargets.length === 0 ? 'Reviews verstuurd!' : 'Hoe was de tocht?'}
             </h2>
             {reviewTargets.length > 0 && (
               <p className="font-body text-sm text-on-surface-variant mb-4">
@@ -530,7 +525,7 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
                       onClick={() => setRevieweeId(target.id)}
                       className="w-full py-2.5 rounded-xl border border-primary/30 text-primary font-label text-sm font-bold active:scale-95 transition-all"
                     >
-                      ⭐ Review schrijven
+                      Review schrijven
                     </button>
                   )}
                 </div>
@@ -562,7 +557,7 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
                            active:scale-95 transition-all
                            focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
-                ⛵ Aanmelden voor deze tocht
+                Aanmelden voor deze tocht
               </motion.button>
             ) : (
               <motion.div
