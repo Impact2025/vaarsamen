@@ -52,7 +52,7 @@ export default async function LandingPage() {
         <div className="flex flex-wrap justify-center gap-2" aria-label="Kenmerken">
           {[
             { icon: 'verified', label: 'CWO gecheckt' },
-            { icon: 'anchor',   label: '300+ havens' },
+            { icon: 'sailing',  label: 'Gratis in beta' },
             { icon: 'favorite', label: 'Echte matches' },
           ].map(({ icon, label }) => (
             <div
