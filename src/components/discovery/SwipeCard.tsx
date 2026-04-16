@@ -5,7 +5,8 @@ import { motion, useMotionValue, useTransform, type PanInfo } from 'framer-motio
 import Image from 'next/image'
 import {
   BOAT_LABELS, CWO_LABELS, ROLE_LABELS, SAILING_AREAS,
-  LOOKING_FOR_LABELS, type Profile, type LookingFor,
+  LOOKING_FOR_LABELS, MATCH_REASON_ICONS, MATCH_REASON_LABELS,
+  type Profile, type LookingFor, type MatchReason,
 } from '@/types'
 
 const AREA_LABEL = Object.fromEntries(SAILING_AREAS.map(a => [a.id, a.label]))
@@ -85,8 +86,8 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
       {/* ── Kaart ───────────────────────────────────────────────── */}
       <div className="w-full h-full rounded-card overflow-hidden shadow-deep bg-surface-container flex flex-col">
 
-        {/* ── FOTO (58%) — met naam-overlay onderaan ──────────── */}
-        <div className="relative flex-shrink-0" style={{ height: '58%' }}>
+        {/* ── FOTO (72%) — met naam-overlay onderaan ──────────── */}
+        <div className="relative flex-shrink-0" style={{ height: '72%' }}>
           {profile.photoUrl ? (
             <Image
               src={profile.photoUrl}
@@ -165,64 +166,72 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
           </div>
         </div>
 
-        {/* ── CONTENT (42%) ─────────────────────────────────── */}
-        <div className="flex-1 flex flex-col px-4 pt-3 pb-3 gap-2.5 min-h-0 overflow-hidden">
+        {/* ── INFOBALK (28%) — kerninfo + match-redenen ── */}
+        <div className="flex-1 flex flex-col justify-center px-4 gap-1.5 overflow-hidden">
 
-          {/* Intentie + boot — compacte pill-rij */}
-          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+          {/* Match-redenen — max 2, alleen als aanwezig */}
+          {profile.matchReasons && profile.matchReasons.length > 0 && (
             <div
-              className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-2.5 py-1"
+              className="flex items-center gap-1.5"
+              role="list"
+              aria-label="Waarom deze match"
+            >
+              {(profile.matchReasons as MatchReason[]).slice(0, 2).map(reason => (
+                <div
+                  key={reason}
+                  role="listitem"
+                  className="flex items-center gap-1 rounded-full px-2 py-0.5 bg-primary/10 border border-primary/25"
+                >
+                  <span
+                    className="material-symbols-outlined text-primary text-[10px]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                    aria-hidden="true"
+                  >
+                    {MATCH_REASON_ICONS[reason]}
+                  </span>
+                  <span className="font-label text-[10px] font-semibold text-primary leading-none">
+                    {MATCH_REASON_LABELS[reason]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Intentie + boot */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div
+              className="flex items-center gap-1 bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5"
               aria-label={`Zoekt: ${LOOKING_FOR_LABELS[profile.lookingFor]}`}
             >
               <span
-                className="material-symbols-outlined text-primary text-[12px]"
+                className="material-symbols-outlined text-primary text-[11px]"
                 style={{ fontVariationSettings: "'FILL' 1" }}
                 aria-hidden="true"
               >
                 {LOOKING_FOR_ICON[profile.lookingFor]}
               </span>
-              <span className="font-label text-[11px] font-semibold text-primary">
+              <span className="font-label text-[10px] font-semibold text-primary">
                 {LOOKING_FOR_LABELS[profile.lookingFor]}
               </span>
             </div>
             {profile.boats[0] && (
-              <div className="flex items-center gap-1 bg-surface-container-high border border-outline/20 rounded-full px-2.5 py-1">
-                <span className="material-symbols-outlined text-[12px] text-on-surface-variant" aria-hidden="true">sailing</span>
-                <span className="font-label text-[11px] text-on-surface-variant">
-                  {BOAT_LABELS[profile.boats[0].type]}
-                </span>
-              </div>
+              <span className="font-label text-[10px] text-on-surface-variant border border-outline/20 rounded-full px-2 py-0.5">
+                {BOAT_LABELS[profile.boats[0].type]}
+              </span>
             )}
-          </div>
-
-          {/* Bio */}
-          {profile.bio && (
-            <p className="font-body text-[13px] text-on-surface/75 leading-relaxed line-clamp-2 flex-shrink-0">
-              {profile.bio}
-            </p>
-          )}
-
-          {/* Vaargebieden + vaardigheidstags — onderaan verankerd */}
-          <div className="flex flex-wrap gap-1.5 mt-auto flex-shrink-0" role="list" aria-label="Vaargebieden">
             {visibleAreas.map(area => (
-              <span
-                key={area}
-                role="listitem"
-                className="px-2.5 py-0.5 rounded-full border border-outline/20 bg-surface-container-high font-label text-[11px] text-on-surface-variant"
-              >
+              <span key={area} className="font-label text-[10px] text-on-surface-variant/70 border border-outline/15 rounded-full px-2 py-0.5">
                 {area}
               </span>
             ))}
-            {profile.skillTags.slice(0, 2).map(tag => (
-              <span
-                key={tag}
-                role="listitem"
-                className="px-2.5 py-0.5 rounded-full border border-outline/15 font-label text-[11px] text-on-surface-variant/60"
-              >
-                {tag}
-              </span>
-            ))}
           </div>
+
+          {/* Bio — 1 regel */}
+          {profile.bio && (
+            <p className="font-body text-[12px] text-on-surface/60 leading-snug line-clamp-1">
+              {profile.bio}
+            </p>
+          )}
         </div>
       </div>
     </motion.div>

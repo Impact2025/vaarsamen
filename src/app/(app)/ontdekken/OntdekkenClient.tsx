@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CardStack } from '@/components/discovery/CardStack'
@@ -11,6 +11,88 @@ import { useSwipe } from '@/hooks/useSwipe'
 import { useWelcomeTour } from '@/hooks/useWelcomeTour'
 import type { Profile } from '@/types'
 
+// ─── DATUM CHIP HELPERS ───────────────────────────────────────────────────────
+
+interface DateChip {
+  date:      string | null  // null = "alle data"
+  label:     string
+  sub:       string
+  isWeekend: boolean
+}
+
+function buildDateChips(count = 8): DateChip[] {
+  const chips: DateChip[] = [{ date: null, label: 'Alle', sub: 'data', isWeekend: false }]
+  const today   = new Date()
+  const DAY_NL  = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za']
+
+  for (let i = 0; i < count; i++) {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    const day = DAY_NL[d.getDay()]
+    chips.push({
+      date:      d.toISOString().slice(0, 10),
+      label:     i === 0 ? 'Vandaag' : day.charAt(0).toUpperCase() + day.slice(1),
+      sub:       `${d.getDate()}/${d.getMonth() + 1}`,
+      isWeekend: d.getDay() === 0 || d.getDay() === 6,
+    })
+  }
+  return chips
+}
+
+const DATE_CHIPS = buildDateChips(8)
+
+// ─── DATUM FILTER STRIP ───────────────────────────────────────────────────────
+
+function DateFilterStrip({
+  selected,
+  isLoading,
+  onSelect,
+}: {
+  selected:  string | null
+  isLoading: boolean
+  onSelect:  (date: string | null) => void
+}) {
+  return (
+    <div
+      className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+      role="radiogroup"
+      aria-label="Filter op beschikbaarheidsdatum"
+    >
+      {DATE_CHIPS.map(chip => {
+        const active = selected === chip.date
+        return (
+          <button
+            key={chip.date ?? 'all'}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => !isLoading && onSelect(chip.date)}
+            disabled={isLoading}
+            className={[
+              'flex-shrink-0 flex flex-col items-center px-3 py-1.5 rounded-xl border transition-all duration-150',
+              'min-w-[52px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              active
+                ? 'border-primary bg-primary/15 shadow-glow'
+                : chip.isWeekend
+                  ? 'border-primary/25 bg-surface-container-high hover:border-primary/40'
+                  : 'border-outline/15 bg-surface-container hover:border-outline/30',
+            ].join(' ')}
+          >
+            <span className={`font-label text-[11px] font-semibold leading-tight ${active ? 'text-primary' : 'text-on-surface-variant'}`}>
+              {chip.label}
+            </span>
+            <span className={`font-label text-[10px] leading-tight ${active ? 'text-primary/70' : 'text-on-surface-variant/60'}`}>
+              {isLoading && active ? '···' : chip.sub}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── HOOFD-COMPONENT ──────────────────────────────────────────────────────────
+
 interface OntdekkenClientProps {
   initialProfiles:        Profile[]
   myProfile:              Profile
@@ -19,19 +101,40 @@ interface OntdekkenClientProps {
 
 export function OntdekkenClient({ initialProfiles, myProfile, initialSwipesRemaining }: OntdekkenClientProps) {
   const router = useRouter()
-  const { profiles, swipe, matchedProfile, matchId, swipesRemaining, closeMatch } = useSwipe(
+  const { profiles, swipe, matchedProfile, matchId, swipesRemaining, closeMatch, resetProfiles } = useSwipe(
     initialProfiles,
-    initialSwipesRemaining
+    initialSwipesRemaining,
   )
   const { show: showTour, dismiss: dismissTour } = useWelcomeTour()
   const [likedFeedback, setLikedFeedback] = useState(false)
+  const [selectedDate,  setSelectedDate]  = useState<string | null>(null)
+  const [isRefetching,  setIsRefetching]  = useState(false)
 
   const topProfile = profiles[0]
+
+  // ── Datumfilter ───────────────────────────────────────────────────────────
+
+  const handleDateFilter = useCallback(async (date: string | null) => {
+    setSelectedDate(date)
+    setIsRefetching(true)
+    try {
+      const url  = date ? `/api/profiles?date=${date}` : '/api/profiles'
+      const res  = await fetch(url)
+      if (!res.ok) return
+      const data = await res.json()
+      resetProfiles((data.profiles as Profile[]) ?? [])
+    } catch {
+      // Stil falen — bestaande kaarten blijven zichtbaar
+    } finally {
+      setIsRefetching(false)
+    }
+  }, [resetProfiles])
+
+  // ── Swipe handlers ────────────────────────────────────────────────────────
 
   const handleLike = async () => {
     if (!topProfile) return
     await swipe(topProfile.id, 'right')
-    // MatchModal verschijnt vanzelf bij een match via state; geef anders korte feedback
     setLikedFeedback(true)
     setTimeout(() => setLikedFeedback(false), 1500)
   }
@@ -47,38 +150,47 @@ export function OntdekkenClient({ initialProfiles, myProfile, initialSwipesRemai
   }
 
   return (
-    <div className="flex flex-col h-dvh max-h-dvh px-4 pt-6">
-      {/* Header */}
-      <header className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="font-headline font-black text-2xl text-on-surface leading-tight">
-            Beschikbare zeilers
-          </h1>
-          <p className="font-label text-xs text-on-surface-variant mt-0.5">
-            {profiles.length > 0
-              ? `${profiles.length} zeiler${profiles.length !== 1 ? 's' : ''} in de buurt`
-              : 'Op basis van jouw voorkeuren'
-            }
-          </p>
-        </div>
-        {swipesRemaining < 20 && (
-          <div className="flex items-center gap-1.5 glass-card rounded-full px-3 py-1.5 border border-white/10">
-            <span className="material-symbols-outlined text-xs text-on-surface-variant" aria-hidden="true">
-              swap_horiz
-            </span>
-            <span className="font-label text-xs text-on-surface-variant">
-              {swipesRemaining} over
-            </span>
+    <div className="flex flex-col h-dvh max-h-dvh px-4 pt-4">
+
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <header className="mb-3">
+        <div className="flex items-center justify-between mb-2.5">
+          <div>
+            <h1 className="font-headline font-black text-xl text-on-surface leading-tight">
+              Beste matches
+            </h1>
+            <p className="font-label text-[11px] text-on-surface-variant mt-0.5">
+              {profiles.length > 0
+                ? `${profiles.length} zeiler${profiles.length !== 1 ? 's' : ''} gesorteerd op compatibiliteit`
+                : selectedDate
+                  ? 'Geen zeilers beschikbaar op deze datum'
+                  : 'Op basis van jouw voorkeuren'
+              }
+            </p>
           </div>
-        )}
+          {swipesRemaining < 20 && (
+            <div className="flex items-center gap-1 glass-card rounded-full px-2.5 py-1 border border-white/10 flex-shrink-0">
+              <span className="material-symbols-outlined text-[11px] text-on-surface-variant" aria-hidden="true">
+                swap_horiz
+              </span>
+              <span className="font-label text-[11px] text-on-surface-variant">
+                {swipesRemaining} over
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Beschikbaarheids-filter */}
+        <DateFilterStrip
+          selected={selectedDate}
+          isLoading={isRefetching}
+          onSelect={handleDateFilter}
+        />
       </header>
 
-      {/* Kaartenstapel */}
+      {/* ── Kaartenstapel ─────────────────────────────────────────────────── */}
       <div className="flex-1 relative">
-        <CardStack
-          profiles={profiles}
-          onSwipe={swipe}
-        />
+        <CardStack profiles={profiles} onSwipe={swipe} />
       </div>
 
       {/* Feedback toast bij like zonder match */}
