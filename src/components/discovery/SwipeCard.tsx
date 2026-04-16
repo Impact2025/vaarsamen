@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { motion, useMotionValue, useTransform, type PanInfo } from 'framer-motion'
 import Image from 'next/image'
 import {
@@ -40,6 +41,7 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
   const rotate = useTransform(x, [-200, 200], [-12, 12])
   const likeOp = useTransform(x, [0, 80],   [0, 1])
   const passOp = useTransform(x, [-80, 0],  [1, 0])
+  const [bioExpanded, setBioExpanded] = useState(false)
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     if (Math.abs(info.offset.x) > 120) {
@@ -164,7 +166,7 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
         </div>
 
         {/* ── CONTENT (48%) ─────────────────────────────────── */}
-        <div className="flex-1 flex flex-col gap-2.5 px-4 py-3 overflow-hidden min-h-0">
+        <div className={`flex-1 flex flex-col gap-2.5 px-4 py-3 min-h-0 ${bioExpanded ? 'overflow-y-auto' : 'overflow-hidden'}`}>
 
           {/* Zoekt — de intentie is de kern van matching */}
           <div
@@ -185,9 +187,21 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
 
           {/* Bio */}
           {profile.bio && (
-            <p className="font-body text-[13px] text-on-surface/75 line-clamp-2 flex-shrink-0 leading-relaxed">
-              {profile.bio}
-            </p>
+            <div className="flex-shrink-0">
+              <p className={`font-body text-[13px] text-on-surface/75 leading-relaxed ${bioExpanded ? '' : 'line-clamp-2'}`}>
+                {profile.bio}
+              </p>
+              {profile.bio.length > 80 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setBioExpanded(v => !v) }}
+                  className="font-label text-[12px] font-semibold text-primary mt-0.5"
+                  aria-expanded={bioExpanded}
+                >
+                  {bioExpanded ? 'Minder' : 'Lees meer'}
+                </button>
+              )}
+            </div>
           )}
 
           {/* Boot + vaargebieden */}
