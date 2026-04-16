@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { users, profiles, boats } from '@/lib/db/schema'
+import { users, profiles, boats, tochten } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 
 // Vaste UUIDs — idempotent: seed kan meerdere keren veilig worden uitgevoerd
@@ -303,4 +303,152 @@ export async function seedDemoProfiles() {
   }
 
   return { aangemaakt, bestaand, totaal: DEMO_PROFILES.length }
+}
+
+// ─── DEMO TOCHTEN ─────────────────────────────────────────────────────────────
+// Idempotent: vaste UUIDs, datum wordt bij re-seeden ververst zodat tochten
+// altijd in de toekomst liggen en zichtbaar zijn in de filter.
+
+export async function seedDemoTochten() {
+  // Datum helper: geeft een ISO-datumstring terug voor vandaag + N dagen
+  const dag = (offset: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() + offset)
+    return d.toISOString().slice(0, 10)
+  }
+
+  const DEMO_TOCHTEN = [
+    {
+      id:            'ccdd0003-0000-0000-0000-000000000001',
+      profileId:     'bbcc0002-0000-0000-0000-000000000001', // Anne de Jong
+      titel:         'Dagje Markermeer op mijn Beneteau — 1 maatje gezocht',
+      beschrijving:  'Zaterdag een dagtocht vanuit de Sixhaven. Plan: Volendam aandoen, lunchen en terug. Zoek enthousiaste bemanning CWO2+.',
+      datum:         dag(3),
+      vertrekTijd:   '09:00',
+      vaargebied:    'markermeer',
+      locatie:       'Sixhaven Amsterdam',
+      bootType:      'kajuitjacht' as const,
+      cwoMinimum:    'cwo2' as const,
+      aantalPlaatsen: 1,
+    },
+    {
+      id:            'ccdd0003-0000-0000-0000-000000000002',
+      profileId:     'bbcc0002-0000-0000-0000-000000000003', // Lisa Bakker
+      titel:         'Waddenzee tocht Enkhuizen → Texel — 2 plaatsen vrij',
+      beschrijving:  'Weekendtocht op mijn Jeanneau 36. Vrijdagavond vertrek, zaterdag Texel aandoen, zondag terug. Zoek 2 ervaren bemanningsleden voor langeafstandservaring.',
+      datum:         dag(5),
+      vertrekTijd:   '18:00',
+      vaargebied:    'waddenzee',
+      locatie:       'Jachthaven Enkhuizen',
+      bootType:      'kajuitjacht' as const,
+      cwoMinimum:    'cwo_kielboot1' as const,
+      aantalPlaatsen: 2,
+    },
+    {
+      id:            'ccdd0003-0000-0000-0000-000000000003',
+      profileId:     'bbcc0002-0000-0000-0000-000000000005', // Sandra Dekker
+      titel:         'Sneekweek voorbereiding — trainingsdag op de Valk',
+      beschrijving:  'Zoek tactisch sterk bemanningslid voor trainingsdag op de Friese Meren. We trainen startprocedures en luwte-varen. Niveau CWO3 of regatta-ervaring vereist.',
+      datum:         dag(4),
+      vertrekTijd:   '10:00',
+      vaargebied:    'friese_meren',
+      locatie:       'WSV Sneek',
+      bootType:      'valk' as const,
+      cwoMinimum:    'cwo3' as const,
+      aantalPlaatsen: 1,
+    },
+    {
+      id:            'ccdd0003-0000-0000-0000-000000000004',
+      profileId:     'bbcc0002-0000-0000-0000-000000000006', // Pieter van Dam
+      titel:         'Waddenzee oversteek Den Helder → Vlieland',
+      beschrijving:  'Offshore weekendje op mijn Hallberg-Rassy. Zaterdagochtend vroeg vertrek, overnachting op Vlieland, zondag terug. Zoek 2 ervaren meezeilers. Nacht varen is mogelijk.',
+      datum:         dag(6),
+      vertrekTijd:   '05:30',
+      vaargebied:    'waddenzee',
+      locatie:       'Marinehaven Den Helder',
+      bootType:      'kajuitjacht' as const,
+      cwoMinimum:    'cwo_kielboot2' as const,
+      aantalPlaatsen: 2,
+    },
+    {
+      id:            'ccdd0003-0000-0000-0000-000000000005',
+      profileId:     'bbcc0002-0000-0000-0000-000000000007', // Eva Koops
+      titel:         'Catamaran racing Markermeer — zoek trapeze-rijder',
+      beschrijving:  'Zondag race op het Markermeer met mijn Topcat. Zoek iemand die kan trapezeren en niet bang is voor snelheid. Beginners welkom als je leergierig bent!',
+      datum:         dag(4),
+      vertrekTijd:   '11:00',
+      vaargebied:    'markermeer',
+      locatie:       'Jachthaven Almere',
+      bootType:      'catamaran' as const,
+      cwoMinimum:    'geen' as const,
+      aantalPlaatsen: 1,
+    },
+    {
+      id:            'ccdd0003-0000-0000-0000-000000000006',
+      profileId:     'bbcc0002-0000-0000-0000-000000000008', // Joris Hendriks
+      titel:         'Gezellige zaterdag op de Plassen — Polyvalk, kinderen welkom',
+      beschrijving:  'Elke zaterdag varen vanuit Loosdrecht op mijn Polyvalk. Rustig tempo, gezelligheid staat voorop. Kinderen welkom. Zoek 1 of 2 meezeilers.',
+      datum:         dag(3),
+      vertrekTijd:   '10:30',
+      vaargebied:    'loosdrechtse_plassen',
+      locatie:       'WSV Loosdrecht',
+      bootType:      'polyvalk' as const,
+      cwoMinimum:    'geen' as const,
+      aantalPlaatsen: 2,
+    },
+    {
+      id:            'ccdd0003-0000-0000-0000-000000000007',
+      profileId:     'bbcc0002-0000-0000-0000-000000000004', // Tom Smits
+      titel:         'Laser sparringpartner gezocht — IJsselmeer zaterdag',
+      beschrijving:  'Ga zaterdag trainen op het IJsselmeer met mijn Laser. Zoek iemand die ook een Laser heeft om mee te varen en van te leren. Ben CWO1 maar super enthousiast!',
+      datum:         dag(4),
+      vertrekTijd:   '13:00',
+      vaargebied:    'ijsselmeer',
+      locatie:       'Loosdrechtse Plassen',
+      bootType:      'laser' as const,
+      cwoMinimum:    'cwo1' as const,
+      aantalPlaatsen: 1,
+    },
+    {
+      id:            'ccdd0003-0000-0000-0000-000000000008',
+      profileId:     'bbcc0002-0000-0000-0000-000000000001', // Anne de Jong (tweede tocht)
+      titel:         'IJsselmeer weekendtocht — Hoorn en terug',
+      beschrijving:  'Weekend op het IJsselmeer van Amsterdam naar Hoorn en terug. Zoek 1 CWO3+ bemanning. Vriendelijke sfeer, mix van zeilen en stad verkennen.',
+      datum:         dag(10),
+      vertrekTijd:   '08:30',
+      vaargebied:    'ijsselmeer',
+      locatie:       'Sixhaven Amsterdam',
+      bootType:      'kajuitjacht' as const,
+      cwoMinimum:    'cwo3' as const,
+      aantalPlaatsen: 1,
+    },
+  ]
+
+  for (const t of DEMO_TOCHTEN) {
+    await db
+      .insert(tochten)
+      .values({
+        id:             t.id,
+        profileId:      t.profileId,
+        titel:          t.titel,
+        beschrijving:   t.beschrijving,
+        datum:          t.datum,
+        vertrekTijd:    t.vertrekTijd,
+        vaargebied:     t.vaargebied,
+        locatie:        t.locatie,
+        bootType:       t.bootType,
+        cwoMinimum:     t.cwoMinimum,
+        aantalPlaatsen: t.aantalPlaatsen,
+        status:         'open',
+      })
+      .onConflictDoUpdate({
+        target: tochten.id,
+        set: {
+          datum:  sql`excluded.datum`,
+          status: sql`excluded.status`,
+        },
+      })
+  }
+
+  return { totaal: DEMO_TOCHTEN.length }
 }

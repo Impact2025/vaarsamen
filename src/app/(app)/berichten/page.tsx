@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
-import { getMatchesForProfile } from '@/lib/db/queries/matches'
+import { getMatchesForProfile, getOutgoingLikes } from '@/lib/db/queries/matches'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
@@ -15,6 +15,7 @@ export default async function BerichtenPage() {
   if (!profile) redirect('/onboarding')
 
   const matches = await getMatchesForProfile(profile.id)
+  const verzonden = await getOutgoingLikes(profile.id)
 
   return (
     <div className="px-4 pt-6 pb-28">
@@ -24,6 +25,47 @@ export default async function BerichtenPage() {
           {matches.length} {matches.length === 1 ? 'match' : 'matches'}
         </p>
       </header>
+
+      {/* Verzonden verzoeken */}
+      {verzonden.length > 0 && (
+        <section className="mb-6" aria-label="Verzonden verzoeken">
+          <h2 className="font-label font-bold text-xs text-on-surface-variant uppercase tracking-widest mb-3">
+            Verzonden verzoeken ({verzonden.length})
+          </h2>
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+            {verzonden.map(({ profile: p, swipedAt }) => (
+              <div key={p.id} className="flex flex-col items-center gap-1 flex-shrink-0 w-16">
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden bg-surface-container-high">
+                    {p.photoUrl ? (
+                      <Image
+                        src={p.photoUrl}
+                        alt={`Foto van ${p.displayName}`}
+                        width={56}
+                        height={56}
+                        className="object-cover w-full h-full opacity-70"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="material-symbols-outlined text-2xl text-on-surface-variant" aria-hidden="true">person</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Wacht-indicator */}
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-surface-container
+                                  border border-outline-variant flex items-center justify-center"
+                       aria-label="Wacht op reactie">
+                    <span className="material-symbols-outlined text-[12px] text-on-surface-variant" aria-hidden="true">schedule</span>
+                  </div>
+                </div>
+                <span className="font-label text-[10px] text-on-surface-variant text-center leading-tight truncate w-full text-center">
+                  {p.displayName?.split(' ')[0]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {matches.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">

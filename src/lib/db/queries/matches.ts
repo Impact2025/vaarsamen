@@ -1,6 +1,6 @@
-import { and, eq, or, isNull, desc } from 'drizzle-orm'
+import { and, eq, or, isNull, desc, not, exists } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { matches, messages, profiles, boats } from '@/lib/db/schema'
+import { matches, messages, profiles, boats, swipes } from '@/lib/db/schema'
 
 export async function getMatchesForProfile(profileId: string) {
   const result = await db
@@ -49,6 +49,30 @@ export async function getMatchesForProfile(profileId: string) {
       hasSailed:    match.hasSailed,
     }
   }))
+}
+
+// Profielen waar jij "like" op hebt gezwipt maar nog geen match is (wacht op reactie)
+export async function getOutgoingLikes(profileId: string) {
+  const matchExists = db
+    .select({ one: matches.id })
+    .from(matches)
+    .where(or(
+      and(eq(matches.profileAId, profileId), eq(matches.profileBId, swipes.swipedId)),
+      and(eq(matches.profileBId, profileId), eq(matches.profileAId, swipes.swipedId)),
+    ))
+
+  const rows = await db
+    .select({ profile: profiles, swipedAt: swipes.createdAt })
+    .from(swipes)
+    .innerJoin(profiles, and(eq(profiles.id, swipes.swipedId), isNull(profiles.deletedAt)))
+    .where(and(
+      eq(swipes.swiperId, profileId),
+      eq(swipes.action, 'like'),
+      not(exists(matchExists)),
+    ))
+    .orderBy(desc(swipes.createdAt))
+
+  return rows
 }
 
 export async function getMatchMessages(matchId: string, limit = 50, cursor?: string) {
