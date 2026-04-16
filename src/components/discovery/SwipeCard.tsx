@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
 import { motion, useMotionValue, useTransform, type PanInfo } from 'framer-motion'
 import Image from 'next/image'
 import {
   BOAT_LABELS, CWO_LABELS, ROLE_LABELS, SAILING_AREAS,
-  LOOKING_FOR_LABELS, MATCH_REASON_ICONS, MATCH_REASON_LABELS,
-  type Profile, type LookingFor, type MatchReason,
+  LOOKING_FOR_LABELS,
+  type Profile, type LookingFor,
 } from '@/types'
 
 const AREA_LABEL = Object.fromEntries(SAILING_AREAS.map(a => [a.id, a.label]))
@@ -42,8 +41,6 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
   const rotate = useTransform(x, [-200, 200], [-12, 12])
   const likeOp = useTransform(x, [0, 80],   [0, 1])
   const passOp = useTransform(x, [-80, 0],  [1, 0])
-  const [bioExpanded, setBioExpanded] = useState(false)
-
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     if (Math.abs(info.offset.x) > 120) {
       onSwipe(info.offset.x > 0 ? 'right' : 'left')
@@ -86,8 +83,8 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
       {/* ── Kaart ───────────────────────────────────────────────── */}
       <div className="w-full h-full rounded-card overflow-hidden shadow-deep bg-surface-container flex flex-col">
 
-        {/* ── FOTO (72%) — met naam-overlay onderaan ──────────── */}
-        <div className="relative flex-shrink-0" style={{ height: '72%' }}>
+        {/* ── FOTO BANNER (38%) — klein, niet de focus ─────────── */}
+        <div className="relative flex-shrink-0" style={{ height: '38%' }}>
           {profile.photoUrl ? (
             <Image
               src={profile.photoUrl}
@@ -100,137 +97,92 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
           ) : (
             <ProfilePlaceholder name={profile.displayName} />
           )}
-
-          {/* Gradient: donker onderaan voor naam-leesbaarheid */}
           <div
             className="absolute inset-0"
-            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 35%, transparent 45%, rgba(0,0,0,0.75) 100%)' }}
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, transparent 40%, rgba(0,0,0,0.55) 100%)' }}
             aria-hidden="true"
           />
-
-          {/* CWO badge — links boven */}
+          {/* CWO + rol badges links/rechts boven */}
           {profile.cwoLevel !== 'geen' && (
-            <div className="absolute top-3 left-3 z-10">
-              <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 backdrop-blur-md bg-black/30 border border-white/20">
-                <span
-                  className="material-symbols-outlined text-[13px] text-primary"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                  aria-hidden="true"
-                >
-                  {profile.cwoVerified ? 'verified' : 'school'}
-                </span>
-                <span className="font-label text-[11px] font-bold text-white uppercase tracking-widest">
-                  {CWO_LABELS[profile.cwoLevel]}
-                </span>
-              </div>
+            <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1 rounded-full px-2.5 py-1 backdrop-blur-md bg-black/30 border border-white/20">
+              <span className="material-symbols-outlined text-[12px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden="true">
+                {profile.cwoVerified ? 'verified' : 'school'}
+              </span>
+              <span className="font-label text-[10px] font-bold text-white uppercase tracking-widest">
+                {CWO_LABELS[profile.cwoLevel]}
+              </span>
             </div>
           )}
-
-          {/* Rol badge — rechts boven */}
-          <div className="absolute top-3 right-3 z-10">
-            <div className="flex items-center gap-1 rounded-full px-2.5 py-1.5 backdrop-blur-md bg-black/30 border border-white/20">
-              <span className="material-symbols-outlined text-[13px] text-white/90" aria-hidden="true">
-                {profile.sailingRole === 'schipper' ? 'sailing' : profile.sailingRole === 'bemanning' ? 'person' : 'group'}
-              </span>
-              <span className="font-label text-[10px] font-semibold text-white/90">
-                {ROLE_LABELS[profile.sailingRole]}
-              </span>
-            </div>
-          </div>
-
-          {/* Naam + thuishaven + rating — onderaan foto (Tinder/Airbnb-stijl) */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 z-10">
-            <div className="flex items-end justify-between gap-2">
-              <div className="min-w-0">
-                <h2 className="font-headline font-black text-[26px] text-white leading-tight drop-shadow-sm truncate">
-                  {profile.displayName}
-                </h2>
-                {profile.homePort && (
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="material-symbols-outlined text-[12px] text-white/70" aria-hidden="true">anchor</span>
-                    <span className="font-label text-xs text-white/70">{profile.homePort}</span>
-                  </div>
-                )}
-              </div>
-              {profile.averageRating && (
-                <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full backdrop-blur-md bg-black/30 border border-white/20 flex-shrink-0">
-                  <span
-                    className="material-symbols-outlined text-[13px] text-yellow-400"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                    aria-hidden="true"
-                  >star</span>
-                  <span className="font-label text-sm font-bold text-white">{profile.averageRating.toFixed(1)}</span>
-                </div>
-              )}
-            </div>
+          <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 rounded-full px-2.5 py-1 backdrop-blur-md bg-black/30 border border-white/20">
+            <span className="material-symbols-outlined text-[12px] text-white/90" aria-hidden="true">
+              {profile.sailingRole === 'schipper' ? 'sailing' : profile.sailingRole === 'bemanning' ? 'person' : 'group'}
+            </span>
+            <span className="font-label text-[10px] font-semibold text-white/90">
+              {ROLE_LABELS[profile.sailingRole]}
+            </span>
           </div>
         </div>
 
-        {/* ── INFOBALK (28%) — kerninfo + match-redenen ── */}
-        <div className="flex-1 flex flex-col justify-center px-4 gap-1.5 overflow-hidden">
+        {/* ── CONTENT (62%) — bio is de kern ───────────────────── */}
+        <div className="flex-1 flex flex-col px-4 pt-3 pb-3 gap-2 overflow-hidden">
 
-          {/* Match-redenen — max 2, alleen als aanwezig */}
-          {profile.matchReasons && profile.matchReasons.length > 0 && (
-            <div
-              className="flex items-center gap-1.5"
-              role="list"
-              aria-label="Waarom deze match"
-            >
-              {(profile.matchReasons as MatchReason[]).slice(0, 2).map(reason => (
-                <div
-                  key={reason}
-                  role="listitem"
-                  className="flex items-center gap-1 rounded-full px-2 py-0.5 bg-primary/10 border border-primary/25"
-                >
-                  <span
-                    className="material-symbols-outlined text-primary text-[10px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                    aria-hidden="true"
-                  >
-                    {MATCH_REASON_ICONS[reason]}
-                  </span>
-                  <span className="font-label text-[10px] font-semibold text-primary leading-none">
-                    {MATCH_REASON_LABELS[reason]}
-                  </span>
+          {/* Naam + thuishaven + rating */}
+          <div className="flex items-start justify-between gap-2 flex-shrink-0">
+            <div className="min-w-0">
+              <h2 className="font-headline font-black text-xl text-on-surface leading-tight truncate">
+                {profile.displayName}
+              </h2>
+              {profile.homePort && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="material-symbols-outlined text-[11px] text-on-surface-variant" aria-hidden="true">anchor</span>
+                  <span className="font-label text-xs text-on-surface-variant">{profile.homePort}</span>
                 </div>
-              ))}
+              )}
             </div>
-          )}
+            {profile.averageRating && (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="material-symbols-outlined text-[13px] text-yellow-400" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden="true">star</span>
+                <span className="font-label text-sm font-bold text-on-surface">{profile.averageRating.toFixed(1)}</span>
+              </div>
+            )}
+          </div>
 
-          {/* Intentie + boot */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Intentie + boot — compacte pill-rij */}
+          <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
             <div
-              className="flex items-center gap-1 bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5"
+              className="flex items-center gap-1 bg-primary/10 border border-primary/20 rounded-full px-2.5 py-1"
               aria-label={`Zoekt: ${LOOKING_FOR_LABELS[profile.lookingFor]}`}
             >
-              <span
-                className="material-symbols-outlined text-primary text-[11px]"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-                aria-hidden="true"
-              >
+              <span className="material-symbols-outlined text-primary text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden="true">
                 {LOOKING_FOR_ICON[profile.lookingFor]}
               </span>
-              <span className="font-label text-[10px] font-semibold text-primary">
+              <span className="font-label text-[11px] font-semibold text-primary">
                 {LOOKING_FOR_LABELS[profile.lookingFor]}
               </span>
             </div>
             {profile.boats[0] && (
-              <span className="font-label text-[10px] text-on-surface-variant border border-outline/20 rounded-full px-2 py-0.5">
+              <span className="font-label text-[11px] text-on-surface-variant border border-outline/20 rounded-full px-2.5 py-1">
                 {BOAT_LABELS[profile.boats[0].type]}
               </span>
             )}
-            {visibleAreas.map(area => (
-              <span key={area} className="font-label text-[10px] text-on-surface-variant/70 border border-outline/15 rounded-full px-2 py-0.5">
-                {area}
-              </span>
-            ))}
           </div>
 
-          {/* Bio — 1 regel */}
+          {/* Bio — prominent, 3 regels */}
           {profile.bio && (
-            <p className="font-body text-[12px] text-on-surface/60 leading-snug line-clamp-1">
+            <p className="font-body text-sm text-on-surface/80 leading-relaxed line-clamp-3 flex-shrink-0">
               {profile.bio}
             </p>
+          )}
+
+          {/* Vaargebieden — onderaan verankerd */}
+          {visibleAreas.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-auto flex-shrink-0">
+              {visibleAreas.map(area => (
+                <span key={area} className="font-label text-[11px] text-on-surface-variant border border-outline/20 rounded-full px-2.5 py-0.5">
+                  {area}
+                </span>
+              ))}
+            </div>
           )}
         </div>
       </div>
