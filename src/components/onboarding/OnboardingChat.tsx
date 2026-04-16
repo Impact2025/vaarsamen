@@ -81,7 +81,7 @@ export function OnboardingChat() {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Refs
-  const bottomRef  = useRef<HTMLDivElement>(null)
+  const chatRef    = useRef<HTMLElement>(null)
   const inputRef   = useRef<HTMLInputElement>(null)
   const timersRef  = useRef<ReturnType<typeof setTimeout>[]>([])
 
@@ -100,7 +100,11 @@ export function OnboardingChat() {
 
   // ─── Scroll to bottom on new message ──────────────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 60)
+    const t = setTimeout(() => {
+      if (chatRef.current) {
+        chatRef.current.scrollTop = chatRef.current.scrollHeight
+      }
+    }, 80)
     return () => clearTimeout(t)
   }, [messages, isTyping])
 
@@ -350,6 +354,7 @@ export function OnboardingChat() {
 
       {/* ── Chat messages ── */}
       <main
+        ref={chatRef}
         className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
         aria-live="polite"
         aria-label="Gesprek met Lars"
@@ -407,7 +412,6 @@ export function OnboardingChat() {
           )}
         </AnimatePresence>
 
-        <div ref={bottomRef} className="h-2" aria-hidden="true" />
       </main>
 
       {/* ── Input footer ── */}
