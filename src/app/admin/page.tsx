@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { AdminSeedSection } from './AdminSeedSection'
 import { db } from '@/lib/db'
 import { profiles, tochten, matches, reports } from '@/lib/db/schema'
 import { count, eq, and, isNull, sql } from 'drizzle-orm'
@@ -104,6 +105,8 @@ export default async function AdminDashboard() {
           )
         })}
       </div>
+
+      <AdminSeedSection />
 
       {/* Snelkoppelingen */}
       <div className="glass-card rounded-2xl p-5 border border-white/5">
