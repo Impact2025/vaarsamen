@@ -70,6 +70,7 @@ const nextConfig: NextConfig = {
         'vaarsamen.vercel.app',
         '*.vercel.app',
         'vaarsamen.nl',
+        'www.vaarsamen.nl',
         '*.vaarsamen.nl',
       ],
     },
