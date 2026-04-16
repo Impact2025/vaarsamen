@@ -156,27 +156,28 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
 
       {/* Datum + tijd + gebied */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-          style={{ backgroundColor: kleur + '22', border: `1px solid ${kleur}44` }}
-        >
-          <span className="material-symbols-outlined text-xs" style={{ color: kleur }} aria-hidden="true">calendar_today</span>
-          <span className="font-label text-xs font-black capitalize" style={{ color: kleur }}>{datumLabel}</span>
-        </div>
+        {/* Datum — neutraal, geen gebiedskleur */}
+        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high border border-white/10 font-label text-xs font-black text-on-surface capitalize">
+          📅 {datumLabel}
+        </span>
         {tocht.vertrekTijd && (
           <span className="px-3 py-1.5 rounded-full bg-surface-container border border-white/10 font-label text-xs text-on-surface-variant">
-            ⚓ {tocht.vertrekTijd} vertrek
+            🕘 {tocht.vertrekTijd} vertrek
           </span>
         )}
-        <span className="px-3 py-1.5 rounded-full bg-surface-container border border-white/10 font-label text-xs text-on-surface-variant">
-          {gebiedLabel}
+        {/* Gebied — wél de gebiedskleur, dat hoort hier */}
+        <span
+          className="px-3 py-1.5 rounded-full font-label text-xs font-semibold"
+          style={{ backgroundColor: kleur + '22', border: `1px solid ${kleur}44`, color: kleur }}
+        >
+          🗺️ {gebiedLabel}
         </span>
       </div>
 
       {/* Locatie met Google Maps link */}
       {tocht.locatie && (
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-sm flex-shrink-0" style={{ color: kleur }} aria-hidden="true">location_on</span>
+          <span aria-hidden="true">📍</span>
           {mapsUrl ? (
             <a
               href={mapsUrl}
@@ -197,21 +198,21 @@ export function TochtDetailClient({ tocht, poster, aanmeldingen, myProfileId, is
       <div className="flex flex-wrap gap-2 mb-5">
         {tocht.bootType && (
           <span className="px-3 py-1 rounded-full bg-surface-container-high border border-white/10 font-label text-xs text-on-surface-variant">
-            {BOAT_LABELS[tocht.bootType as keyof typeof BOAT_LABELS]}
+            ⛵ {BOAT_LABELS[tocht.bootType as keyof typeof BOAT_LABELS]}
           </span>
         )}
         {tocht.cwoMinimum && tocht.cwoMinimum !== 'geen' && (
           <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 font-label text-xs text-primary">
-            min. {CWO_LABELS[tocht.cwoMinimum as keyof typeof CWO_LABELS]}
+            🎓 min. {CWO_LABELS[tocht.cwoMinimum as keyof typeof CWO_LABELS]}
           </span>
         )}
         <span className="px-3 py-1 rounded-full bg-surface-container-high border border-white/10 font-label text-xs text-on-surface-variant">
-          {tocht.aantalPlaatsen} {tocht.aantalPlaatsen === 1 ? 'plek' : 'plekken'}
+          👥 {tocht.aantalPlaatsen} {tocht.aantalPlaatsen === 1 ? 'plek' : 'plekken'}
         </span>
         {localAanmeldingen.length > 0 && (
           <span className="px-3 py-1 rounded-full border font-label text-xs font-bold"
             style={{ backgroundColor: kleur + '22', borderColor: kleur + '44', color: kleur }}>
-            {localAanmeldingen.length} {localAanmeldingen.length === 1 ? 'aanmelding' : 'aanmeldingen'}
+            📋 {localAanmeldingen.length} {localAanmeldingen.length === 1 ? 'aanmelding' : 'aanmeldingen'}
           </span>
         )}
       </div>
