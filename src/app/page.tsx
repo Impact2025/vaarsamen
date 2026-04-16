@@ -1,7 +1,13 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await auth()
+  if (session?.user) {
+    redirect('/ontdekken')
+  }
   return (
     <main className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 overflow-hidden">
       <div className="absolute top-4 right-4">

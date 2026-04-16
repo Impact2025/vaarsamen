@@ -157,6 +157,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     // JWT strategy: vereist voor Credentials provider (dev-login + demo-login)
     strategy: 'jwt',
+    maxAge: 7 * 24 * 60 * 60, // 7 dagen
   },
   callbacks: {
     // Sla isAdmin + isOnboarded op in het JWT token bij login
