@@ -6,7 +6,7 @@ import { db } from '@/lib/db'
 import { profiles, boats } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
-// GET /api/profiles — Discovery feed
+// GET /api/profiles — Discovery feed (met scoring)
 export async function GET(req: Request) {
   const session = await auth()
   if (!session?.user?.id) {
@@ -19,19 +19,23 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url)
-  const filters = {
+
+  const result = await getDiscoveryFeed(profile.id, {
     cwoLevels:    searchParams.get('cwoLevel')?.split(',').filter(Boolean),
     sailingAreas: searchParams.get('sailingArea')?.split(',').filter(Boolean)
                   ?? (profile.sailingAreas?.length ? profile.sailingAreas : undefined),
-    date:         searchParams.get('date') ?? undefined,
-    role:         searchParams.get('role') ?? undefined,
     limit:        Number(searchParams.get('limit') ?? '20'),
-    myLat:        profile.lat    ?? null,
-    myLng:        profile.lng    ?? null,
-    radiusKm:     profile.searchRadiusKm ?? 50,
-  }
-
-  const result = await getDiscoveryFeed(profile.id, filters)
+    myLat:        profile.lat             ?? null,
+    myLng:        profile.lng             ?? null,
+    radiusKm:     profile.searchRadiusKm  ?? 50,
+    // Strikte datumfilter — alleen als meegegeven in query
+    availableDate: searchParams.get('date') ?? undefined,
+    // Scoringscontext voor de huidige gebruiker
+    myCwoLevel:   profile.cwoLevel    ?? 'geen',
+    myRole:       profile.sailingRole ?? 'beide',
+    myLookingFor: profile.lookingFor  ?? 'alles',
+    myExperience: profile.experience  ?? null,
+  })
 
   return Response.json({ profiles: result })
 }
@@ -57,19 +61,19 @@ export async function POST(req: Request) {
   const [profile] = await db
     .insert(profiles)
     .values({
-      userId:      session.user.id,
-      displayName: parsed.data.displayName,
-      age:         parsed.data.age,
-      bio:         parsed.data.bio,
-      city:        parsed.data.city,
-      province:    parsed.data.province,
-      homePort:    parsed.data.homePort,
-      cwoLevel:    parsed.data.cwoLevel,
-      sailingRole: parsed.data.sailingRole,
-      lookingFor:  parsed.data.lookingFor,
-      experience:  parsed.data.experience,
+      userId:       session.user.id,
+      displayName:  parsed.data.displayName,
+      age:          parsed.data.age,
+      bio:          parsed.data.bio,
+      city:         parsed.data.city,
+      province:     parsed.data.province,
+      homePort:     parsed.data.homePort,
+      cwoLevel:     parsed.data.cwoLevel,
+      sailingRole:  parsed.data.sailingRole,
+      lookingFor:   parsed.data.lookingFor,
+      experience:   parsed.data.experience,
       sailingAreas: parsed.data.sailingAreas ?? [],
-      skillTags:   parsed.data.skillTags ?? [],
+      skillTags:    parsed.data.skillTags    ?? [],
     })
     .returning()
 

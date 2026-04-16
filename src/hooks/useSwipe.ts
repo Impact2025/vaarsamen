@@ -4,11 +4,11 @@ import { useState, useCallback } from 'react'
 import type { Profile } from '@/types'
 
 interface SwipeState {
-  profiles:       Profile[]
-  matchedProfile: Profile | null
-  matchId:        string | null
+  profiles:        Profile[]
+  matchedProfile:  Profile | null
+  matchId:         string | null
   swipesRemaining: number
-  isLoading:      boolean
+  isLoading:       boolean
 }
 
 export function useSwipe(initialProfiles: Profile[], initialSwipesRemaining = 20) {
@@ -61,9 +61,22 @@ export function useSwipe(initialProfiles: Profile[], initialSwipesRemaining = 20
     }
   }, [initialProfiles])
 
+  /**
+   * Vervangt de huidige kaartenstapel — gebruikt door het datumfilter.
+   * Wist ook de match-modal zodat geen verwarrende state overblijft.
+   */
+  const resetProfiles = useCallback((newProfiles: Profile[]) => {
+    setState(prev => ({
+      ...prev,
+      profiles:       newProfiles,
+      matchedProfile: null,
+      matchId:        null,
+    }))
+  }, [])
+
   const closeMatch = useCallback(() => {
     setState(prev => ({ ...prev, matchedProfile: null, matchId: null }))
   }, [])
 
-  return { ...state, swipe, closeMatch }
+  return { ...state, swipe, closeMatch, resetProfiles }
 }

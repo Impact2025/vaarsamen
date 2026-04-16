@@ -2,6 +2,14 @@ export type CWOLevel =
   | 'geen' | 'cwo1' | 'cwo2' | 'cwo3' | 'cwo4'
   | 'cwo_kielboot1' | 'cwo_kielboot2' | 'cwo_kielboot3'
 
+export type MatchReason =
+  | 'complementaire_rollen'
+  | 'zelfde_vaargebied'
+  | 'zelfde_doel'
+  | 'vrij_binnenkort'
+  | 'hoog_beoordeeld'
+  | 'vergelijkbaar_niveau'
+
 export type BoatType =
   | 'valk' | 'polyvalk' | 'laser' | 'laser_pico'
   | 'rs_feva' | 'kajuitjacht' | 'catamaran' | 'anders'
@@ -31,6 +39,9 @@ export interface Profile {
   boats:           Boat[]
   subscriptionTier: 'free' | 'actief' | 'schipper_pro'
   isFeatured:      boolean
+  // Matching
+  matchScore?:     number
+  matchReasons?:   MatchReason[]
 }
 
 export interface Boat {
@@ -119,6 +130,24 @@ export const ROLE_EMOJI: Record<SailingRole, string> = {
   schipper:  '🚢',
   bemanning: '⛵',
   beide:     '🔄',
+}
+
+export const MATCH_REASON_LABELS: Record<MatchReason, string> = {
+  complementaire_rollen: 'Complementaire rollen',
+  zelfde_vaargebied:     'Zelfde vaargebied',
+  zelfde_doel:           'Zelfde doel',
+  vrij_binnenkort:       'Vrij binnenkort',
+  hoog_beoordeeld:       'Hoog beoordeeld',
+  vergelijkbaar_niveau:  'Vergelijkbaar niveau',
+}
+
+export const MATCH_REASON_ICONS: Record<MatchReason, string> = {
+  complementaire_rollen: 'handshake',
+  zelfde_vaargebied:     'waves',
+  zelfde_doel:           'flag',
+  vrij_binnenkort:       'event_available',
+  hoog_beoordeeld:       'verified',
+  vergelijkbaar_niveau:  'trending_up',
 }
 
 export const CWO_ORDER: Record<CWOLevel, number> = {

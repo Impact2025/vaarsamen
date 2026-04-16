@@ -1,7 +1,12 @@
-import { and, eq, isNull, ne, notInArray, notExists, inArray, desc, asc, sql, or } from 'drizzle-orm'
+import {
+  and, eq, isNull, ne, notInArray, notExists, exists,
+  inArray, desc, sql, or, gte, lte,
+} from 'drizzle-orm'
 import { unstable_cache } from 'next/cache'
 import { db } from '@/lib/db'
-import { profiles, swipes, matches, boats } from '@/lib/db/schema'
+import { profiles, swipes, boats, availability } from '@/lib/db/schema'
+import { computeMatchScore, type ScoringProfile } from '@/lib/matching'
+import type { CWOLevel, LookingFor, MatchReason, SailingRole } from '@/types'
 
 /**
  * Gecached profiel ophalen via userId.
@@ -37,31 +42,48 @@ export const getProfileById = unstable_cache(
   { revalidate: 60, tags: ['profiles'] },
 )
 
+// ─── DISCOVERY FILTERS ───────────────────────────────────────────────────────
+
 interface DiscoveryFilters {
   cwoLevels?:    string[]
   sailingAreas?: string[]
-  date?:         string
   role?:         string
   limit?:        number
   myLat?:        number | null
   myLng?:        number | null
   radiusKm?:     number | null
+  // Strikte filter: toon alleen profielen beschikbaar op deze datum
+  availableDate?: string          // YYYY-MM-DD
+  // Scoringscontext (huidige gebruiker) — optioneel; feed wordt gesorteerd op score als aanwezig
+  myCwoLevel?:   string
+  myRole?:       string
+  myLookingFor?: string
+  myExperience?: number | null
 }
 
+// Venster voor beschikbaarheids-overlap scoring: 60 dagen vooruit
+const AVAIL_DAYS_AHEAD = 60
+
 /**
- * Haalt discovery feed op:
- * - Sluit eigen profiel uit
- * - Sluit al-geswiped profielen uit via NOT EXISTS subquery (schaalt bij duizenden swipes)
- * - Sluit soft-deleted profielen uit
- * - Vult aan met featured profielen als feed te klein is (cold-start strategie)
+ * Haalt discovery feed op, gesorteerd op compatibiliteitsscore.
+ *
+ * Pipeline:
+ *   1. Sluit eigen profiel, al-geswiped, soft-deleted en onzichtbare profielen uit
+ *   2. Filter op vaargebied-overlap en afstand (Haversine)
+ *   3. Optioneel: filter op beschikbare datum (strict)
+ *   4. Cold-start aanvulling met featured profielen indien feed te klein
+ *   5. Haal boten op (batch)
+ *   6. Haal beschikbaarheidsdata op voor scoring (parallel)
+ *   7. Bereken compatibiliteitsscore per profiel
+ *   8. Sorteer op score DESC, lastActive als tiebreaker
  */
 export async function getDiscoveryFeed(
   currentProfileId: string,
-  filters:          DiscoveryFilters = {}
+  filters:          DiscoveryFilters = {},
 ) {
   const limit = Math.min(filters.limit ?? 20, 20)
 
-  // NOT EXISTS subquery: geen NOT IN (lijst) meer — blijft efficiënt bij elk volume swipes
+  // NOT EXISTS subquery — efficiënt bij elk volume swipes
   const notAlreadySwiped = notExists(
     db.select({ one: sql<number>`1` })
       .from(swipes)
@@ -79,8 +101,7 @@ export async function getDiscoveryFeed(
     notAlreadySwiped,
   ]
 
-  // Vaargebieden filter — alleen als huidige gebruiker gebieden heeft ingesteld
-  // Profielen zonder vaargebieden worden altijd getoond (inclusief)
+  // Vaargebieden filter
   if (filters.sailingAreas && filters.sailingAreas.length > 0) {
     const areas = filters.sailingAreas
     conditions.push(
@@ -91,8 +112,7 @@ export async function getDiscoveryFeed(
     )
   }
 
-  // Afstandsfilter (Haversine) — alleen als huidige gebruiker locatie heeft
-  // Profielen zonder locatie worden altijd getoond (inclusief)
+  // Afstandsfilter (Haversine)
   if (filters.myLat != null && filters.myLng != null && filters.radiusKm && filters.radiusKm < 500) {
     const { myLat, myLng, radiusKm } = filters
     conditions.push(
@@ -107,6 +127,22 @@ export async function getDiscoveryFeed(
     )
   }
 
+  // Strikte beschikbaarheidsdatum-filter: alleen profielen die op deze dag vrij zijn
+  if (filters.availableDate) {
+    const d = filters.availableDate
+    conditions.push(
+      exists(
+        db.select({ one: sql<number>`1` })
+          .from(availability)
+          .where(and(
+            eq(availability.profileId, profiles.id),
+            eq(availability.date, d),
+            eq(availability.isAvailable, true),
+          ))
+      )
+    )
+  }
+
   let result = await db
     .select()
     .from(profiles)
@@ -114,43 +150,124 @@ export async function getDiscoveryFeed(
     .orderBy(desc(profiles.lastActive))
     .limit(limit)
 
-  // Cold-start strategie: vul aan met featured profielen als feed te klein is
+  // Cold-start: vul aan met featured profielen als feed te klein is
   if (result.length < 5) {
     const alreadyShown = [currentProfileId, ...result.map(p => p.id)]
-
     const featured = await db
       .select()
       .from(profiles)
       .where(and(
         isNull(profiles.deletedAt),
         eq(profiles.isFeatured, true),
-        notInArray(profiles.id, alreadyShown), // klein array: max limit+1
+        notInArray(profiles.id, alreadyShown),
         notAlreadySwiped,
       ))
       .limit(limit - result.length)
-
     result = [...result, ...featured]
   }
 
-  // Haal boten op voor deze profielen
   const profileIds = result.map(p => p.id)
   if (profileIds.length === 0) return []
 
-  const profileBoats = await db
-    .select()
-    .from(boats)
-    .where(inArray(boats.profileId, profileIds))
+  // ── Boten en beschikbaarheid parallel ophalen ─────────────────────────────
 
+  const today    = new Date().toISOString().slice(0, 10)
+  const cutoffDt = new Date()
+  cutoffDt.setDate(cutoffDt.getDate() + AVAIL_DAYS_AHEAD)
+  const cutoff   = cutoffDt.toISOString().slice(0, 10)
+
+  const [profileBoats, myAvailRows, theirAvailRows] = await Promise.all([
+
+    db.select().from(boats).where(inArray(boats.profileId, profileIds)),
+
+    // Mijn beschikbare data — voor overlap-scoring
+    db.select({ date: availability.date })
+      .from(availability)
+      .where(and(
+        eq(availability.profileId, currentProfileId),
+        eq(availability.isAvailable, true),
+        gte(availability.date, today),
+        lte(availability.date, cutoff),
+      )),
+
+    // Kandidaten hun beschikbare data — batch
+    db.select({ profileId: availability.profileId, date: availability.date })
+      .from(availability)
+      .where(and(
+        inArray(availability.profileId, profileIds),
+        eq(availability.isAvailable, true),
+        gte(availability.date, today),
+        lte(availability.date, cutoff),
+      )),
+  ])
+
+  // Boten per profiel
   const boatsByProfile = profileBoats.reduce((acc, boat) => {
     if (!acc[boat.profileId]) acc[boat.profileId] = []
     acc[boat.profileId].push(boat)
     return acc
   }, {} as Record<string, typeof profileBoats>)
 
-  return result.map(profile => ({
-    ...profile,
-    boats: boatsByProfile[profile.id] ?? [],
-  }))
+  // Beschikbare data per kandidaat-profiel
+  const theirDatesByProfile = new Map<string, Set<string>>()
+  for (const row of theirAvailRows) {
+    if (!theirDatesByProfile.has(row.profileId)) {
+      theirDatesByProfile.set(row.profileId, new Set())
+    }
+    theirDatesByProfile.get(row.profileId)!.add(row.date)
+  }
+  const myDates = new Set(myAvailRows.map(r => r.date))
+
+  // ── Scoringscontext van de huidige gebruiker ──────────────────────────────
+
+  const meForScoring: ScoringProfile | null =
+    filters.myCwoLevel && filters.myRole && filters.myLookingFor
+      ? {
+          sailingRole:   filters.myRole       as SailingRole,
+          cwoLevel:      filters.myCwoLevel   as CWOLevel,
+          lookingFor:    filters.myLookingFor as LookingFor,
+          sailingAreas:  filters.sailingAreas ?? [],
+          experience:    filters.myExperience ?? null,
+          averageRating: null,
+          reviewCount:   0,
+        }
+      : null
+
+  // ── Score berekenen per kandidaat-profiel ─────────────────────────────────
+
+  const scored = result.map(profile => {
+    const profileBoatList = boatsByProfile[profile.id] ?? []
+
+    if (!meForScoring) {
+      return { ...profile, boats: profileBoatList, matchScore: 0, matchReasons: [] as MatchReason[] }
+    }
+
+    const them: ScoringProfile = {
+      sailingRole:   (profile.sailingRole ?? 'beide') as SailingRole,
+      cwoLevel:      (profile.cwoLevel    ?? 'geen')  as CWOLevel,
+      lookingFor:    (profile.lookingFor  ?? 'alles') as LookingFor,
+      sailingAreas:  profile.sailingAreas  ?? [],
+      experience:    profile.experience    ?? null,
+      averageRating: profile.averageRating ?? null,
+      reviewCount:   profile.reviewCount   ?? 0,
+    }
+
+    const theirDates = theirDatesByProfile.get(profile.id) ?? new Set<string>()
+    const { score, reasons } = computeMatchScore(meForScoring, them, myDates, theirDates)
+
+    return { ...profile, boats: profileBoatList, matchScore: score, matchReasons: reasons }
+  })
+
+  // ── Sorteer op score DESC, lastActive als tiebreaker ─────────────────────
+
+  scored.sort((a, b) => {
+    if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore
+    const aTime = a.lastActive ? new Date(a.lastActive).getTime() : 0
+    const bTime = b.lastActive ? new Date(b.lastActive).getTime() : 0
+    return bTime - aTime
+  })
+
+  return scored
 }
 
 export async function softDeleteProfile(profileId: string, deletedBy: string) {
