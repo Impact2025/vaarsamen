@@ -42,7 +42,7 @@ export function useSwipe(initialProfiles: Profile[], initialSwipesRemaining = 20
         if (data.limitReached) {
           setState(prev => ({ ...prev, swipesRemaining: 0 }))
         }
-        return
+        return null
       }
 
       setState(prev => ({
@@ -53,8 +53,11 @@ export function useSwipe(initialProfiles: Profile[], initialSwipesRemaining = 20
           : prev.matchedProfile,
         matchId: data.isMatch ? data.matchId : prev.matchId,
       }))
+
+      return { isMatch: !!data.isMatch, matchId: data.matchId as string | null }
     } catch (err) {
       console.error('Swipe fout:', err)
+      return null
     }
   }, [initialProfiles])
 

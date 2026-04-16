@@ -1,6 +1,8 @@
 'use client'
 
-import { AnimatePresence } from 'framer-motion'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 import { CardStack } from '@/components/discovery/CardStack'
 import { SwipeActions } from '@/components/discovery/SwipeActions'
 import { MatchModal } from '@/components/matches/MatchModal'
@@ -16,13 +18,33 @@ interface OntdekkenClientProps {
 }
 
 export function OntdekkenClient({ initialProfiles, myProfile, initialSwipesRemaining }: OntdekkenClientProps) {
+  const router = useRouter()
   const { profiles, swipe, matchedProfile, matchId, swipesRemaining, closeMatch } = useSwipe(
     initialProfiles,
     initialSwipesRemaining
   )
   const { show: showTour, dismiss: dismissTour } = useWelcomeTour()
+  const [likedFeedback, setLikedFeedback] = useState(false)
 
   const topProfile = profiles[0]
+
+  const handleLike = async () => {
+    if (!topProfile) return
+    await swipe(topProfile.id, 'right')
+    // MatchModal verschijnt vanzelf bij een match via state; geef anders korte feedback
+    setLikedFeedback(true)
+    setTimeout(() => setLikedFeedback(false), 1500)
+  }
+
+  const handleMessage = async () => {
+    if (!topProfile) return
+    const result = await swipe(topProfile.id, 'right')
+    if (result?.isMatch && result.matchId) {
+      router.push(`/matches/${result.matchId}`)
+    } else {
+      router.push('/berichten')
+    }
+  }
 
   return (
     <div className="flex flex-col h-dvh max-h-dvh px-4 pt-6">
@@ -59,12 +81,40 @@ export function OntdekkenClient({ initialProfiles, myProfile, initialSwipesRemai
         />
       </div>
 
+      {/* Feedback toast bij like zonder match */}
+      <AnimatePresence>
+        {likedFeedback && !matchedProfile && (
+          <motion.div
+            key="liked-toast"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="fixed bottom-40 left-1/2 -translate-x-1/2 z-50
+                       flex items-center gap-2 px-4 py-2.5 rounded-full
+                       bg-primary/90 backdrop-blur-sm shadow-glow"
+            role="status"
+            aria-live="polite"
+          >
+            <span
+              className="material-symbols-outlined text-on-primary text-lg"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+              aria-hidden="true"
+            >
+              sailing
+            </span>
+            <span className="font-label text-sm font-semibold text-on-primary">
+              Interesse getoond!
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Swipe knoppen */}
       {swipesRemaining > 0 ? (
         <SwipeActions
-          onPass={()    => topProfile && swipe(topProfile.id, 'left')}
-          onLike={()    => topProfile && swipe(topProfile.id, 'right')}
-          onMessage={()  => topProfile && swipe(topProfile.id, 'right')}
+          onPass={()   => topProfile && swipe(topProfile.id, 'left')}
+          onLike={handleLike}
+          onMessage={handleMessage}
           disabled={!topProfile}
         />
       ) : (
