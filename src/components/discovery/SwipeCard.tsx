@@ -85,8 +85,8 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
       {/* ── Kaart ───────────────────────────────────────────────── */}
       <div className="w-full h-full rounded-card overflow-hidden shadow-deep bg-surface-container flex flex-col">
 
-        {/* ── FOTO (52%) — met naam-overlay onderaan ──────────── */}
-        <div className="relative flex-shrink-0" style={{ height: '52%' }}>
+        {/* ── FOTO (58%) — met naam-overlay onderaan ──────────── */}
+        <div className="relative flex-shrink-0" style={{ height: '58%' }}>
           {profile.photoUrl ? (
             <Image
               src={profile.photoUrl}
@@ -165,72 +165,64 @@ export function SwipeCard({ profile, onSwipe, isTop }: SwipeCardProps) {
           </div>
         </div>
 
-        {/* ── CONTENT (48%) ─────────────────────────────────── */}
-        <div className={`flex-1 flex flex-col gap-2.5 px-4 py-3 min-h-0 ${bioExpanded ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+        {/* ── CONTENT (42%) ─────────────────────────────────── */}
+        <div className="flex-1 flex flex-col px-4 pt-3 pb-3 gap-2.5 min-h-0 overflow-hidden">
 
-          {/* Zoekt — de intentie is de kern van matching */}
-          <div
-            className="flex items-center gap-2 gradient-primary rounded-xl px-3 py-2.5 shadow-glow flex-shrink-0"
-            aria-label={`Zoekt: ${LOOKING_FOR_LABELS[profile.lookingFor]}`}
-          >
-            <span
-              className="material-symbols-outlined text-on-primary text-[16px]"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-              aria-hidden="true"
+          {/* Intentie + boot — compacte pill-rij */}
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+            <div
+              className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-2.5 py-1"
+              aria-label={`Zoekt: ${LOOKING_FOR_LABELS[profile.lookingFor]}`}
             >
-              {LOOKING_FOR_ICON[profile.lookingFor]}
-            </span>
-            <span className="font-label font-bold text-on-primary text-[13px] tracking-wide">
-              {LOOKING_FOR_LABELS[profile.lookingFor]}
-            </span>
+              <span
+                className="material-symbols-outlined text-primary text-[12px]"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+                aria-hidden="true"
+              >
+                {LOOKING_FOR_ICON[profile.lookingFor]}
+              </span>
+              <span className="font-label text-[11px] font-semibold text-primary">
+                {LOOKING_FOR_LABELS[profile.lookingFor]}
+              </span>
+            </div>
+            {profile.boats[0] && (
+              <div className="flex items-center gap-1 bg-surface-container-high border border-outline/20 rounded-full px-2.5 py-1">
+                <span className="material-symbols-outlined text-[12px] text-on-surface-variant" aria-hidden="true">sailing</span>
+                <span className="font-label text-[11px] text-on-surface-variant">
+                  {BOAT_LABELS[profile.boats[0].type]}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Bio */}
           {profile.bio && (
-            <div className="flex-shrink-0">
-              <p className={`font-body text-[13px] text-on-surface/75 leading-relaxed ${bioExpanded ? '' : 'line-clamp-2'}`}>
-                {profile.bio}
-              </p>
-              {profile.bio.length > 80 && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setBioExpanded(v => !v) }}
-                  className="font-label text-[12px] font-semibold text-primary mt-0.5"
-                  aria-expanded={bioExpanded}
-                >
-                  {bioExpanded ? 'Minder' : 'Lees meer'}
-                </button>
-              )}
-            </div>
+            <p className="font-body text-[13px] text-on-surface/75 leading-relaxed line-clamp-2 flex-shrink-0">
+              {profile.bio}
+            </p>
           )}
 
-          {/* Boot + vaargebieden */}
-          {(profile.boats[0] || visibleAreas.length > 0) && (
-            <div className="flex flex-wrap gap-1.5 flex-shrink-0" role="list" aria-label="Boot en vaargebieden">
-              {profile.boats[0] && (
-                <div role="listitem" className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-outline/20 bg-surface-container-high">
-                  <span className="material-symbols-outlined text-[12px] text-primary" aria-hidden="true">sailing</span>
-                  <span className="font-label text-xs font-semibold text-on-surface">{BOAT_LABELS[profile.boats[0].type]}</span>
-                </div>
-              )}
-              {visibleAreas.map(area => (
-                <div key={area} role="listitem" className="px-2.5 py-1 rounded-full border border-outline/20 bg-surface-container-high">
-                  <span className="font-label text-xs text-on-surface-variant">{area}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Vaardigheidstags */}
-          {profile.skillTags.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar mt-auto" role="list" aria-label="Vaardigheden">
-              {profile.skillTags.slice(0, 4).map(tag => (
-                <div key={tag} role="listitem" className="flex-shrink-0 px-2.5 py-1 rounded-lg border border-outline/15 bg-surface-container-high">
-                  <span className="font-label text-[11px] text-on-surface-variant">{tag}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Vaargebieden + vaardigheidstags — onderaan verankerd */}
+          <div className="flex flex-wrap gap-1.5 mt-auto flex-shrink-0" role="list" aria-label="Vaargebieden">
+            {visibleAreas.map(area => (
+              <span
+                key={area}
+                role="listitem"
+                className="px-2.5 py-0.5 rounded-full border border-outline/20 bg-surface-container-high font-label text-[11px] text-on-surface-variant"
+              >
+                {area}
+              </span>
+            ))}
+            {profile.skillTags.slice(0, 2).map(tag => (
+              <span
+                key={tag}
+                role="listitem"
+                className="px-2.5 py-0.5 rounded-full border border-outline/15 font-label text-[11px] text-on-surface-variant/60"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </motion.div>
