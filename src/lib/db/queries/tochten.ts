@@ -111,6 +111,37 @@ export async function getTochtById(id: string): Promise<TochtDetail | null> {
   }
 }
 
+// ─── MIJN AANMELDINGEN ────────────────────────────────────────────────────────
+
+export type MijnAanmelding = {
+  aanmelding: typeof tochtAanmeldingen.$inferSelect
+  tocht:      typeof tochten.$inferSelect
+  poster:     typeof profiles.$inferSelect
+}
+
+export async function getMyAanmeldingen(profileId: string): Promise<MijnAanmelding[]> {
+  const rows = await db
+    .select({
+      aanmelding: tochtAanmeldingen,
+      tocht:      tochten,
+      poster:     profiles,
+    })
+    .from(tochtAanmeldingen)
+    .innerJoin(tochten,   eq(tochtAanmeldingen.tochtId,   tochten.id))
+    .innerJoin(profiles,  eq(tochten.profileId,            profiles.id))
+    .where(and(
+      eq(tochtAanmeldingen.profileId, profileId),
+      isNull(tochten.deletedAt),
+    ))
+    .orderBy(desc(tochtAanmeldingen.createdAt))
+
+  return rows.map(r => ({
+    aanmelding: r.aanmelding,
+    tocht:      r.tocht,
+    poster:     r.poster,
+  }))
+}
+
 // ─── MIJN TOCHTEN ─────────────────────────────────────────────────────────────
 
 export async function getMyTochten(profileId: string): Promise<TochtMetPoster[]> {
