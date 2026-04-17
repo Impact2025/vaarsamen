@@ -64,9 +64,10 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/onboarding', req.nextUrl))
   }
 
-  if (isOnboarded && isOnboardingRoute) {
-    return NextResponse.redirect(new URL('/ontdekken', req.nextUrl))
-  }
+  // Geen middleware-redirect van /onboarding → /ontdekken op basis van cookie/JWT:
+  // de OnboardingPage server component checkt de DB en handelt beide gevallen correct af.
+  // Een stale cookie (isOnboarded=true, maar DB=false) veroorzaakt anders een redirect-loop
+  // tussen de middleware en de /ontdekken page.
 
   return NextResponse.next()
 })
