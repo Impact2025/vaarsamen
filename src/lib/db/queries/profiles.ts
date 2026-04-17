@@ -12,35 +12,39 @@ import type { CWOLevel, LookingFor, MatchReason, SailingRole } from '@/types'
  * Gecached profiel ophalen via userId.
  * TTL: 60 seconden. Invalideer met revalidateTag('profiles') na profiel-wijziging.
  */
-export const getProfileByUserId = unstable_cache(
-  async (userId: string) => {
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(and(eq(profiles.userId, userId), isNull(profiles.deletedAt)))
-      .limit(1)
-    return profile ?? null
-  },
-  ['profile-by-user'],
-  { revalidate: 60, tags: ['profiles'] },
-)
+export function getProfileByUserId(userId: string) {
+  return unstable_cache(
+    async () => {
+      const [profile] = await db
+        .select()
+        .from(profiles)
+        .where(and(eq(profiles.userId, userId), isNull(profiles.deletedAt)))
+        .limit(1)
+      return profile ?? null
+    },
+    [`profile-by-user-${userId}`],
+    { revalidate: 60, tags: ['profiles'] },
+  )()
+}
 
 /**
  * Gecached profiel ophalen via profiel-ID.
  * TTL: 60 seconden. Invalideer met revalidateTag('profiles') na profiel-wijziging.
  */
-export const getProfileById = unstable_cache(
-  async (id: string) => {
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(and(eq(profiles.id, id), isNull(profiles.deletedAt)))
-      .limit(1)
-    return profile ?? null
-  },
-  ['profile-by-id'],
-  { revalidate: 60, tags: ['profiles'] },
-)
+export function getProfileById(id: string) {
+  return unstable_cache(
+    async () => {
+      const [profile] = await db
+        .select()
+        .from(profiles)
+        .where(and(eq(profiles.id, id), isNull(profiles.deletedAt)))
+        .limit(1)
+      return profile ?? null
+    },
+    [`profile-by-id-${id}`],
+    { revalidate: 60, tags: ['profiles'] },
+  )()
+}
 
 // ─── DISCOVERY FILTERS ───────────────────────────────────────────────────────
 
