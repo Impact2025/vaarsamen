@@ -19,14 +19,14 @@ const STEPS: Step[] = [
   },
   {
     badge:       'Ontdekken',
-    title:       'Swipen is simpel',
-    description: 'Vind je iemand interessant? Swipe naar rechts of tik op het hartje. Niet jouw type? Swipe links of tik op het kruis.',
+    title:       'Vind je vaarmaatje',
+    description: 'Lijkt iemand een goede vaarpartner? Swipe naar rechts of tik op het vinkje. Toch niet? Swipe links of tik op het kruis.',
     visual:      <SwipeVisual />,
   },
   {
-    badge:       'Matches & Crew',
-    title:       'Van match naar zeilpartner',
-    description: 'Jullie allebei rechts? Dan is het een match! Stuur een bericht en plan jullie eerste vaartocht samen.',
+    badge:       'Verbinding',
+    title:       'Van koppeling naar vaartocht',
+    description: 'Allebei geïnteresseerd? Dan is het een koppeling! Stuur een bericht en plan jullie eerste vaartocht samen.',
     visual:      <MatchVisual />,
   },
   {
@@ -232,19 +232,19 @@ function SwipeVisual() {
       {/* Badge */}
       <rect x="95"  cy="215" y="215" width="50" height="7"  rx="3.5" fill="rgba(70,241,197,0.2)" />
 
-      {/* Links pijl — PASS */}
+      {/* Links pijl — NEE */}
       <g opacity="0.9">
         <circle cx="55" cy="138" r="22" fill="rgba(255,100,80,0.15)" stroke="rgba(255,100,80,0.4)" strokeWidth="1.5" />
         <text x="55" y="146" textAnchor="middle" fontSize="18" fill="rgba(255,100,80,0.9)" fontFamily="Material Symbols Outlined">close</text>
       </g>
-      <text x="55" y="175" textAnchor="middle" fontSize="9" fill="rgba(255,100,80,0.6)" fontFamily="Plus Jakarta Sans" fontWeight="700">PASS</text>
+      <text x="55" y="175" textAnchor="middle" fontSize="9" fill="rgba(255,100,80,0.6)" fontFamily="Plus Jakarta Sans" fontWeight="700">NEE</text>
 
-      {/* Rechts pijl — LIKE */}
+      {/* Rechts pijl — JA */}
       <g opacity="0.9">
         <circle cx="245" cy="138" r="22" fill="rgba(70,241,197,0.15)" stroke="rgba(70,241,197,0.5)" strokeWidth="1.5" />
-        <text x="245" y="146" textAnchor="middle" fontSize="18" fill="rgba(70,241,197,0.9)" fontFamily="Material Symbols Outlined">favorite</text>
+        <text x="245" y="146" textAnchor="middle" fontSize="18" fill="rgba(70,241,197,0.9)" fontFamily="Material Symbols Outlined">sailing</text>
       </g>
-      <text x="245" y="175" textAnchor="middle" fontSize="9" fill="rgba(70,241,197,0.6)" fontFamily="Plus Jakarta Sans" fontWeight="700">LIKE</text>
+      <text x="245" y="175" textAnchor="middle" fontSize="9" fill="rgba(70,241,197,0.6)" fontFamily="Plus Jakarta Sans" fontWeight="700">JA</text>
 
       {/* Swipe pijl animatie hint */}
       <path d="M95 260 L205 260" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" strokeDasharray="4 4" />
