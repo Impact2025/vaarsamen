@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
-              "img-src 'self' data: blob: https://public.blob.vercel-storage.com https://lh3.googleusercontent.com https://images.unsplash.com",
+              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://lh3.googleusercontent.com https://images.unsplash.com",
               "connect-src 'self' https://*.pusher.com wss://*.pusher.com https://sockjs-eu.pusher.com https://api.resend.com",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
@@ -49,7 +49,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname:  'public.blob.vercel-storage.com',
+        hostname:  '*.public.blob.vercel-storage.com',
       },
       {
         protocol: 'https',

@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     .values({
       userId:       session.user.id,
       displayName:  parsed.data.displayName,
+      photoUrl:     parsed.data.photoUrl     ?? null,
       age:          parsed.data.age,
       bio:          parsed.data.bio,
       city:         parsed.data.city,
