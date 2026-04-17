@@ -78,6 +78,6 @@ export async function POST(req: Request) {
     })
     .returning()
 
-  revalidateTag('profiles', 'max')
+  revalidateTag('profiles')
   return Response.json({ profile }, { status: 201 })
 }
