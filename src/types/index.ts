@@ -167,7 +167,7 @@ export const GEBIED_COLOR: Record<string, string> = {
   waddenzee:  'bg-amber-400',
   randmeren:  'bg-violet-400',
   zeeland:    'bg-rose-400',
-  amsterdam:  'bg-teal-400',
+  amsterdam:  'bg-sky-700',
   noord_zee:  'bg-sky-400',
 }
 
@@ -177,6 +177,6 @@ export const GEBIED_COLOR_HEX: Record<string, string> = {
   waddenzee:  '#fbbf24',
   randmeren:  '#a78bfa',
   zeeland:    '#fb7185',
-  amsterdam:  '#46f1c5',
+  amsterdam:  '#0369a1',
   noord_zee:  '#38bdf8',
 }
