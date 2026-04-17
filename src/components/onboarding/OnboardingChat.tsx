@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PostcodeVeld, type PostcodeResult } from '@/components/ui/PostcodeVeld'
+import { MapPin } from 'lucide-react'
 import {
   CWO_LABELS, SAILING_AREAS, SKILL_TAGS, BOAT_LABELS,
-  ROLE_LABELS, ROLE_EMOJI, LOOKING_FOR_LABELS,
+  ROLE_LABELS, LOOKING_FOR_LABELS,
   type CWOLevel, type BoatType, type SailingRole, type LookingFor,
 } from '@/types'
 
@@ -32,11 +33,8 @@ const CWO_OPTIONS: { level: CWOLevel; desc: string }[] = [
   { level: 'cwo_kielboot3', desc: 'Expert kielboot' },
 ]
 
-const BOAT_OPTIONS: { type: BoatType; emoji: string }[] = [
-  { type: 'valk',        emoji: '⛵' }, { type: 'polyvalk',    emoji: '⛵' },
-  { type: 'laser',       emoji: '🏄' }, { type: 'laser_pico',  emoji: '🏄' },
-  { type: 'rs_feva',     emoji: '🏄' }, { type: 'kajuitjacht', emoji: '🛥️' },
-  { type: 'catamaran',   emoji: '⛵' }, { type: 'anders',      emoji: '🚢' },
+const BOAT_OPTIONS: BoatType[] = [
+  'valk', 'polyvalk', 'laser', 'laser_pico', 'rs_feva', 'kajuitjacht', 'catamaran', 'anders',
 ]
 
 const ROLES: SailingRole[] = ['schipper', 'bemanning', 'beide']
@@ -144,7 +142,7 @@ export function OnboardingChat() {
   // ─── Initial messages ──────────────────────────────────────────────────────
   useEffect(() => {
     showLarsMessages([
-      'Hoi! Ik ben Lars, jouw gids bij VaarSamen. 👋',
+      'Hoi! Ik ben Lars, jouw gids bij VaarSamen.',
       'We zijn zo klaar — echt maar 5 minuten. Wat is jouw voornaam?',
     ])
     const t = setTimeout(() => inputRef.current?.focus(), 1800)
@@ -760,7 +758,6 @@ function RolInput({
                 ? 'border-primary/60 bg-primary/10'
                 : 'border-white/10 bg-surface-container hover:border-white/20'}`}
           >
-            <span className="text-2xl" aria-hidden="true">{ROLE_EMOJI[r]}</span>
             <span className={`font-label font-bold text-center leading-tight ${sailingRole === r ? 'text-primary' : 'text-on-surface'} ${fsSmall}`}>
               {ROLE_LABELS[r]}
             </span>
@@ -840,20 +837,19 @@ function BootInput({
             className="overflow-hidden"
           >
             <div className="grid grid-cols-2 gap-2 pt-1" role="group" aria-label="Boottype kiezen">
-              {BOAT_OPTIONS.map(({ type, emoji }) => {
+              {BOAT_OPTIONS.map((type) => {
                 const sel = boatTypes.includes(type)
                 return (
                   <button
                     key={type}
                     aria-pressed={sel}
                     onClick={() => toggle(type)}
-                    className={`flex items-center gap-2 px-3 py-3 rounded-2xl border transition-all text-left
+                    className={`flex items-center px-3 py-3 rounded-2xl border transition-all text-left
                       focus:outline-none focus-visible:ring-2 focus-visible:ring-primary
                       ${sel
                         ? 'border-primary/60 bg-primary/10'
                         : 'border-white/10 bg-surface-container hover:border-white/20'}`}
                   >
-                    <span className="text-xl" aria-hidden="true">{emoji}</span>
                     <span className={`font-label font-bold ${sel ? 'text-primary' : 'text-on-surface'} ${fsSmall}`}>
                       {BOAT_LABELS[type]}
                     </span>
@@ -1027,8 +1023,9 @@ function PreviewInput({
           <div className="flex-1 min-w-0">
             <p className={`font-headline font-black text-on-surface ${fsBody}`}>{displayName}</p>
             {city && (
-              <p className={`font-body text-on-surface-variant mt-0.5 ${fsSmall}`}>
-                📍 {city}{homePort ? ` · ${homePort}` : ''}
+              <p className={`font-body text-on-surface-variant mt-0.5 flex items-center gap-1 ${fsSmall}`}>
+                <MapPin size={12} aria-hidden="true" />
+                {city}{homePort ? ` · ${homePort}` : ''}
               </p>
             )}
             {cwoLevel && (
