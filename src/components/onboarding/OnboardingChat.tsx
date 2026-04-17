@@ -108,6 +108,17 @@ export function OnboardingChat() {
     return () => clearTimeout(t)
   }, [messages, isTyping])
 
+  // Footer groeit bij hasBoat=true (height-animatie ~300ms) — scroll daarna bij
+  useEffect(() => {
+    if (hasBoat === null) return
+    const t = setTimeout(() => {
+      if (chatRef.current) {
+        chatRef.current.scrollTop = chatRef.current.scrollHeight
+      }
+    }, 350)
+    return () => clearTimeout(t)
+  }, [hasBoat])
+
   // ─── Lars message scheduler ────────────────────────────────────────────────
   const showLarsMessages = (msgs: string[]) => {
     timersRef.current.forEach(clearTimeout)
