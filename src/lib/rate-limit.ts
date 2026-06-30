@@ -1,55 +1,37 @@
-// In-memory rate limiter — vervang door Upstash Redis bij > 500 gebruikers
-// Let op: werkt niet over meerdere Vercel serverless instanties
+// In-memory rate limiter — geen externe deps nodig
+const hits = new Map<string, { count: number; resetTime: number }>()
 
-type Entry = { count: number; resetAt: number }
-
-const store = new Map<string, Entry>()
-
-// Schoon verlopen entries op elke 10 minuten
-setInterval(() => {
+export function rateLimit(
+  key: string,
+  max: number,
+  windowMs: number
+): { success: boolean; remaining: number; resetIn: number } {
   const now = Date.now()
-  for (const [key, entry] of store.entries()) {
-    if (now > entry.resetAt) store.delete(key)
+  const entry = hits.get(key)
+
+  if (!entry || now > entry.resetTime) {
+    hits.set(key, { count: 1, resetTime: now + windowMs })
+    return { success: true, remaining: max - 1, resetIn: windowMs }
   }
-}, 10 * 60 * 1000)
 
-export type RateLimitKey = 'swipe' | 'upload' | 'message' | 'auth' | 'report'
+  if (entry.count >= max) {
+    return { success: false, remaining: 0, resetIn: entry.resetTime - now }
+  }
 
-const WINDOWS: Record<RateLimitKey, { max: number; windowMs: number }> = {
-  swipe:   { max: 60,  windowMs: 60_000  },
-  upload:  { max: 10,  windowMs: 60_000  },
-  message: { max: 30,  windowMs: 60_000  },
-  auth:    { max: 10,  windowMs: 60_000  },
-  report:  { max: 5,   windowMs: 300_000 },
+  entry.count++
+  return { success: true, remaining: max - entry.count, resetIn: entry.resetTime - now }
 }
 
+export const SWIPE_LIMIT = 60    // swipes per minuut
+export const MESSAGE_LIMIT = 30  // messages per minuut
+export const API_LIMIT = 100     // requests per minuut
+
+// Wrapper genoemd zoals door swipe/route.ts verwacht
 export function checkRateLimit(
-  key:        RateLimitKey,
-  identifier: string,
-): { allowed: boolean; remaining: number; resetAt: number } {
-  const { max, windowMs } = WINDOWS[key]
-  const id  = `${key}:${identifier}`
-  const now = Date.now()
-  const existing = store.get(id)
-
-  if (!existing || now > existing.resetAt) {
-    const resetAt = now + windowMs
-    store.set(id, { count: 1, resetAt })
-    return { allowed: true, remaining: max - 1, resetAt }
-  }
-
-  if (existing.count >= max) {
-    return { allowed: false, remaining: 0, resetAt: existing.resetAt }
-  }
-
-  existing.count++
-  return { allowed: true, remaining: max - existing.count, resetAt: existing.resetAt }
+  type: 'swipe' | 'message' | 'api',
+  key: string
+): { allowed: boolean; remaining?: number } {
+  const limits = { swipe: SWIPE_LIMIT, message: MESSAGE_LIMIT, api: API_LIMIT }
+  const result = rateLimit(`rate:${type}:${key}`, limits[type], 60_000)
+  return { allowed: result.success, remaining: result.remaining }
 }
-
-export const RATE_LIMITS = {
-  swipe:   { max: 60,  windowMs: 60_000  },
-  upload:  { max: 10,  windowMs: 60_000  },
-  message: { max: 30,  windowMs: 60_000  },
-  auth:    { max: 10,  windowMs: 60_000  },
-  report:  { max: 5,   windowMs: 300_000 },
-} as const
