@@ -614,6 +614,42 @@ export const boatIssues = pgTable('boat_issues', {
   bootIdx:   index('boat_issues_boot_id_idx').on(t.bootId),
 }))
 
+// ─── SCHOOL RESOURCES ───────────────────────────────────────────────────────
+// Resources die geboekt kunnen worden: boot, equipment, instructeur
+
+export const resourceTypeEnum = pgEnum('resource_type', ['boot', 'equip', 'instructeur'])
+
+export const schoolResources = pgTable('school_resources', {
+  id:         uuid('id').defaultRandom().primaryKey(),
+  schoolId:   uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  type:       resourceTypeEnum('type').notNull(),
+  // Boot reference (for boot/equip), user reference (for instructeur)
+  bootId:     uuid('boot_id').references(() => schoolFleet.id, { onDelete: 'set null' }),
+  userId:     uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  name:       varchar('name', { length: 100 }).notNull(), // 'Laser 2000', 'Parkeren', 'Danny (instructeur)'
+  capacity:   integer('capacity').default(1), // Aantal mensen (instructeur = 1, boot = max pax)
+  sortOrder:  integer('sort_order').notNull().default(0),
+}, (t) => ({
+  schoolIdx:  index('school_resources_school_idx').on(t.schoolId),
+  typeIdx:    index('school_resources_type_idx').on(t.type),
+}))
+
+// ─── BOOKING LOCKS ───────────────────────────────────────────────────────────────
+// Optimistic locking om race conditions te voorkomen (15 min TTL)
+
+export const bookingLocks = pgTable('booking_locks', {
+  id:        uuid('id').defaultRandom().primaryKey(),
+  resourceId: uuid('resource_id').notNull().references(() => schoolResources.id),
+  lessonId:  uuid('lesson_id').references(() => schoolLessons.id),
+  lockedAt:  timestamp('locked_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  userId:    uuid('user_id').notNull().references(() => users.id),
+}, (t) => ({
+  uniqueActive: uniqueIndex('booking_locks_active_uniq')
+    .on(t.resourceId, t.lessonId)
+    .where(sql`${t.expiresAt} > now()`),
+}))
+
 // ─── SCHOOL BERICHTEN ────────────────────────────────────────────────────────
 // Berichten/aankondigingen van instructeurs/eigenaren aan het team
 
@@ -678,6 +714,21 @@ export const skillAssessmentsRelations = relations(skillAssessments, ({ one }) =
   skill:       one(skillDefinitions, { fields: [skillAssessments.skillId],       references: [skillDefinitions.id] }),
   student:     one(users,            { fields: [skillAssessments.studentUserId], references: [users.id], relationName: 'assessment_student' }),
   instructeur: one(users,            { fields: [skillAssessments.instructeurId], references: [users.id], relationName: 'assessment_instructeur' }),
+}))
+
+// ─── RESOURCE RELATIONS ───────────────────────────────────────────────────────────
+
+export const schoolResourcesRelations = relations(schoolResources, ({ one, many }) => ({
+  school:  one(sailingSchools, { fields: [schoolResources.schoolId], references: [sailingSchools.id] }),
+  boot:    one(schoolFleet,   { fields: [schoolResources.bootId],   references: [schoolFleet.id] }),
+  user:    one(users,         { fields: [schoolResources.userId],   references: [users.id] }),
+  locks:   many(bookingLocks),
+}))
+
+export const bookingLocksRelations = relations(bookingLocks, ({ one }) => ({
+  resource: one(schoolResources, { fields: [bookingLocks.resourceId], references: [schoolResources.id] }),
+  lesson:   one(schoolLessons,   { fields: [bookingLocks.lessonId],   references: [schoolLessons.id] }),
+  user:     one(users,           { fields: [bookingLocks.userId],     references: [users.id] }),
 }))
 
 export const lessonNotesRelations = relations(lessonNotes, ({ one }) => ({
