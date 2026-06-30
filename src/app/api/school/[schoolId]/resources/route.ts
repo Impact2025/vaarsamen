@@ -3,12 +3,29 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { schoolResources, schoolFleet, users } from '@/lib/db/schema'
-import { getSchoolMembership } from '@/lib/db/queries/school'
-import { and, eq, isNull, sql } from 'drizzle-orm'
-import { z } from 'zod'
+import { schoolResources, schoolFleet } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 
-// Resource seeding - maak resources van bestaande boten
+// GET /api/school/[schoolId]/resources
+// Lijst beschikbare resources (exclusief verloopt)
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ schoolId: string }> }
+) {
+  const session = await auth()
+  if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { schoolId } = await params
+
+  const resources = await db
+    .select()
+    .from(schoolResources)
+    .where(eq(schoolResources.schoolId, schoolId))
+
+  return Response.json(resources)
+}
+
+// POST /api/school/[schoolId]/resources - seed resources van fleet
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ schoolId: string }> }
@@ -17,74 +34,25 @@ export async function POST(
   if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { schoolId } = await params
-  const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') return Response.json({ error: 'Geen toegang' }, { status: 403 })
 
-  const SeedSchema = z.object({
-    seedBoots:      z.boolean().default(true),
-    seedInstructeurs: z.boolean().default(true),
-  })
+  const { seedBoots } = await req.json()
+  if (!seedBoots) return Response.json({ error: 'seedBoots required' }, { status: 400 })
 
-  const parsed = SeedSchema.safeParse(await req.json())
-  if (!parsed.success) return Response.json({ error: 'Invalid input' }, { status: 400 })
+  // Get fleet en maak resources
+  const fleet = await db
+    .select()
+    .from(schoolFleet)
+    .where(eq(schoolFleet.schoolId, schoolId))
 
-  const { seedBoots, seedInstructeurs } = parsed.data
-  const created: string[] = []
-
-  // Seed existing fleet as resources
-  if (seedBoots) {
-    const fleet = await db
-      .select({ id: schoolFleet.id, naam: schoolFleet.naam, bootNummer: schoolFleet.bootNummer, capacity: schoolFleet.capacity })
-      .from(schoolFleet)
-      .where(and(eq(schoolFleet.schoolId, schoolId), isNull(schoolFleet.deletedAt)))
-
-    for (const boot of fleet) {
-      const name = boot.naam || `Boot #${boot.bootNummer}`
-      const [resource] = await db
-        .insert(schoolResources)
-        .values({
-          schoolId,
-          type: 'boot',
-          bootId: boot.id,
-          name,
-          capacity: boot.capacity || 1,
-        })
-        .onConflictDoNothing({ target: [schoolResources.bootId] })
-        .returning()
-      if (resource) created.push(resource.id)
-    }
+  let created = 0
+  for (const boot of fleet) {
+    const name = boot.naam || `Boot #${boot.bootNummer}`
+    await db
+      .insert(schoolResources)
+      .values({ schoolId, type: 'boot', bootId: boot.id, name, capacity: boot.capacity || 1 })
+      .onConflictDoNothing()
+    created++
   }
 
-  // Seed instructeurs as resources
-  if (seedInstructeurs) {
-    const instructeurs = await db
-      .select({ id: users.id, name: users.name })
-      .from(users)
-      .innerJoin(
-        sql`school_memberships`,
-        eq(sql`school_memberships.user_id`, users.id)
-      )
-      .where(and(
-        eq(sql`school_memberships.school_id`, schoolId),
-        eq(sql`school_memberships.role`, 'instructeur')
-      ))
-
-    for (const inst of instructeurs) {
-      const name = inst.name || 'Instructeur'
-      const [resource] = await db
-        .insert(schoolResources)
-        .values({
-          schoolId,
-          type: 'instructeur',
-          userId: inst.id,
-          name,
-          capacity: 1,
-        })
-        .onConflictDoNothing({ target: [schoolResources.userId] })
-        .returning()
-      if (resource) created.push(resource.id)
-    }
-  }
-
-  return Response.json({ created: created.length, resourceIds: created })
+  return Response.json({ created })
 }
