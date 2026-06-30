@@ -576,7 +576,43 @@ export const boatRentals = pgTable('boat_rentals', {
   uniq: uniqueIndex('boat_rentals_boot_user_datum_uniq').on(t.bootId, t.userId, t.datum),
 }))
 
-// ─── BOOTBESCHIKBAARHEID ─────────────────────────────────────────────────────
+
+
+// ─── STRIPE BILLING ──────────────────────────────────────────────────────────────
+
+export const subscriptionStatusEnum = pgEnum('subscription_status', [
+  'trialing', 'active', 'canceled', 'incomplete', 'past_due'
+])
+
+export const subscriptions = pgTable('subscriptions', {
+  id:             uuid('id').defaultRandom().primaryKey(),
+  schoolId:       uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  stripeCustomerId: text('stripe_customer_id').notNull(),
+  stripeSubscriptionId: text('stripe_subscription_id').notNull(),
+  status:         subscriptionStatusEnum('status').default('incomplete').notNull(),
+  priceId:        text('price_id').notNull(),           // stripe price ID
+  currentPeriodEnd: timestamp('current_period_end'),
+  cancelAt:       timestamp('cancel_at'),
+  createdAt:      timestamp('created_at').defaultNow(),
+  updatedAt:      timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  uniq: uniqueIndex('subscriptions_school_uniq').on(t.schoolId),
+}))
+
+export const invoices = pgTable('invoices', {
+  id:         uuid('id').defaultRandom().primaryKey(),
+  schoolId:   uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  stripeInvoiceId: text('stripe_invoice_id').notNull(),
+  amountPaid: integer('amount_paid').notNull(), // amount in cents
+  currency:   varchar('currency', { length: 3 }).default('eur').notNull(),
+  periodStart: date('period_start').notNull(),
+  periodEnd:   date('period_end').notNull(),
+  paidAt:     timestamp('paid_at').defaultNow().notNull(),
+}, (t) => ({
+  schoolIdx: index('invoices_school_idx').on(t.schoolId),
+}))
+
+// ─── BOOTBESCHIKBAARHEID ───────────────────────────────────────────────────────────────────────────────────────────────────────
 // Periodes dat een boot niet beschikbaar is voor verhuur (onderhoud, schade, reservering)
 
 export const boatAvailability = pgTable('boat_availability', {
