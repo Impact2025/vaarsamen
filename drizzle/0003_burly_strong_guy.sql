@@ -1,0 +1,1 @@
+ALTER TABLE "school_fleet" ADD COLUMN "capacity" integer DEFAULT 1;

@@ -429,6 +429,7 @@ export const schoolFleet = pgTable('school_fleet', {
   bootNummer: text('boot_nummer').notNull(),              // "1", "2", "Valk-3"
   bootType:   boatTypeEnum('boot_type'),
   naam:       text('naam'),
+  capacity:   integer('capacity').default(1),               // max pax
   deletedAt:  timestamp('deleted_at'),
   createdAt:  timestamp('created_at').defaultNow(),
 })
