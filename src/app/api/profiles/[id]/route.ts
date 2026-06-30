@@ -47,6 +47,6 @@ export async function PATCH(
     .where(and(eq(profiles.id, id), isNull(profiles.deletedAt)))
     .returning()
 
-  revalidateTag('profiles', 'max')
+  revalidateTag('profiles', 'layout')
   return Response.json({ profile: updated })
 }
