@@ -461,6 +461,8 @@ export const lessonStudents = pgTable('lesson_students', {
   studentUserId: uuid('student_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   bootId:        uuid('boot_id').references(() => schoolFleet.id),
   soloGevaren:   boolean('solo_gevaren').default(false),
+  // Miles logboek: array van {datum, miles} voor Zeezeilen III certificaat
+  milesLogboek:  jsonb('miles_logboek'),
   createdAt:     timestamp('created_at').defaultNow(),
 }, (t) => ({
   uniq:      uniqueIndex('lesson_students_lesson_student_uniq').on(t.lessonId, t.studentUserId),
@@ -470,14 +472,25 @@ export const lessonStudents = pgTable('lesson_students', {
 // ─── VAARDIGHEID DEFINITIES ──────────────────────────────────────────────────
 // Seeddata: vaardigheden per CWO niveau (bijv. KB2 = 18 vaardigheden)
 
+// Boottype-specifieke vaardigheden (NWD) of generiek per CWO niveau
+// NWD: bootType required, cwoLevel = null
+// CWO: bootType = null, cwoLevel required
+// Unieke constraint per combinatie
 export const skillDefinitions = pgTable('skill_definitions', {
   id:        uuid('id').defaultRandom().primaryKey(),
-  cwoLevel:  cwoLevelEnum('cwo_level').notNull(),
+  cwoLevel:  cwoLevelEnum('cwo_level'), // nullable voor NWD boottype-specifiek
+  bootType:  boatTypeEnum('boot_type'), // nullable voor klassiek CWO
   code:      varchar('code', { length: 20 }).notNull(),  // 'KB2-01', 'KB2-02' …
   naam:      text('naam').notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
 }, (t) => ({
-  uniq: uniqueIndex('skill_definitions_cwo_code_uniq').on(t.cwoLevel, t.code),
+  // Unieke code binnen cwoLevel OF binnen bootType
+  uniq: uniqueIndex('skill_definitions_code_uniq')
+    .on(t.cwoLevel, t.code)
+    .where(sql`${t.bootType} IS NULL`),
+  uniqBoot: uniqueIndex('skill_definitions_boot_code_uniq')
+    .on(t.bootType, t.code)
+    .where(sql`${t.cwoLevel} IS NULL`),
 }))
 
 // ─── VAARDIGHEID BEOORDELINGEN ───────────────────────────────────────────────
@@ -512,6 +525,26 @@ export const lessonNotes = pgTable('lesson_notes', {
   updatedAt:     timestamp('updated_at').defaultNow(),
 }, (t) => ({
   uniq: uniqueIndex('lesson_notes_lesson_student_uniq').on(t.lessonId, t.studentUserId),
+}))
+
+// ─── CERTIFICATEN ───────────────────────────────────────────────────────────
+// Digitale certificaat generatie na afronden cursus
+// Payload bevat student info, vaardigheden, miles, handtekening op datump
+export const certificates = pgTable('certificates', {
+  id:         uuid('id').defaultRandom().primaryKey(),
+  userId:     uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  schoolId:   uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  courseId:   uuid('course_id').notNull().references(() => schoolCourses.id, { onDelete: 'cascade' }),
+  type:       varchar('type', { length: 50 }).notNull(), // 'cwo', 'nwd', 'zeezegels'
+  level:      varchar('level', { length: 50 }).notNull(), // 'cwo_kielboot2', 'zeezeilen3'
+  issuedAt:   timestamp('issued_at').defaultNow(),
+  expiresAt:  date('expires_at'), // null = nooit
+  blobKey:    text('blob_key').notNull(), // Vercel Blob storage key
+  downloadUrl: text('download_url'), // signed URL cache
+  payload:    jsonb('payload'), // student, skills, miles, datum, school
+}, (t) => ({
+  userIdx: index('certificates_user_id_idx').on(t.userId),
+  schoolIdx: index('certificates_school_id_idx').on(t.schoolId),
 }))
 
 // ─── BOOTVERHUUR ─────────────────────────────────────────────────────────────
