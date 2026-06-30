@@ -107,17 +107,23 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Demo-login: werkt in productie wanneer DEMO_EMAIL is ingesteld (legacy, single user)
-const demoEmail = process.env.DEMO_EMAIL
-if (demoEmail) {
+// GEEN demo login in productie - alleen via ALLOW_DEMO_USERS=false check
+if (process.env.NODE_ENV !== 'production' && process.env.DEMO_EMAIL) {
   providers.push(
     Credentials({
       id:   'demo-login',
       name: 'Demo Login',
-      credentials: {},
-      async authorize() {
-        const userId = process.env.DEMO_USER_ID
-        if (!userId) return null
-        return { id: userId, email: demoEmail, name: 'Demo', image: null }
+      credentials: {
+        demoId: { label: 'Demo ID', type: 'text' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.demoId) return null
+        // Lookup in demo accounts
+        const account = DEMO_ACCOUNTS.find(a => a.id === credentials.demoId)
+        if (account) {
+          return { id: account.id, email: account.email, name: account.name, image: null }
+        }
+        return null
       },
     })
   )
@@ -125,7 +131,8 @@ if (demoEmail) {
 
 // Multi-demo: meerdere demo accounts (instructeur + cursist)
 // Activeer via ALLOW_DEMO_USERS=true in .env.local
-if (process.env.ALLOW_DEMO_USERS) {
+// EXPLICITLY GEBLOKKEERD IN PRODUCTION
+if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_USERS) {
   providers.push(
     Credentials({
       id:   'demo-user',
