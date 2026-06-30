@@ -449,8 +449,10 @@ export async function getMijnVorderingen(
 
   const skillsByCwoLevel: Record<string, typeof skillDefinitions.$inferSelect[]> = {}
   for (const s of allSkills) {
-    skillsByCwoLevel[s.cwoLevel] ??= []
-    skillsByCwoLevel[s.cwoLevel].push(s)
+    if (s.cwoLevel) {
+      skillsByCwoLevel[s.cwoLevel] ??= []
+      skillsByCwoLevel[s.cwoLevel].push(s)
+    }
   }
 
   return [...cursusMap.values()].map(v => ({
