@@ -11,6 +11,14 @@ export default auth((req) => {
   const { pathname } = req.nextUrl
   const isLoggedIn = !!req.auth
 
+  // NextAuth v5 beta valt soms terug op /api/auth/signin i.p.v. pages.signIn → stuur door naar /login
+  if (pathname === '/api/auth/signin' && req.method === 'GET') {
+    const callbackUrl = req.nextUrl.searchParams.get('callbackUrl') ?? '/'
+    const loginUrl = new URL('/login', req.nextUrl)
+    loginUrl.searchParams.set('callbackUrl', callbackUrl)
+    return NextResponse.redirect(loginUrl)
+  }
+
   // Publieke routes: altijd doorlaten
   const isPublicPage = ['/', '/login', '/registreer', '/check-email', '/school/login', '/demo'].includes(pathname)
     || pathname.startsWith('/school/join/')
