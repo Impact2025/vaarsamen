@@ -26,12 +26,16 @@ export const SWIPE_LIMIT = 60    // swipes per minuut
 export const MESSAGE_LIMIT = 30  // messages per minuut
 export const API_LIMIT = 100     // requests per minuut
 
+export const REPORT_LIMIT = 5   // reports per 5 minuten
+export const UPLOAD_LIMIT = 10    // uploads per 5 minuten
+
 // Wrapper genoemd zoals door swipe/route.ts verwacht
 export function checkRateLimit(
-  type: 'swipe' | 'message' | 'api',
+  type: 'swipe' | 'message' | 'api' | 'report' | 'upload',
   key: string
 ): { allowed: boolean; remaining?: number } {
-  const limits = { swipe: SWIPE_LIMIT, message: MESSAGE_LIMIT, api: API_LIMIT }
-  const result = rateLimit(`rate:${type}:${key}`, limits[type], 60_000)
+  const limits = { swipe: SWIPE_LIMIT, message: MESSAGE_LIMIT, api: API_LIMIT, report: REPORT_LIMIT, upload: UPLOAD_LIMIT }
+  const windowMs = (type === 'report' || type === 'upload') ? 5 * 60_000 : 60_000
+  const result = rateLimit(`rate:${type}:${key}`, limits[type], windowMs)
   return { allowed: result.success, remaining: result.remaining }
 }
