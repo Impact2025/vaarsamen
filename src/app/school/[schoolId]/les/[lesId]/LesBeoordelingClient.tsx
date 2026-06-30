@@ -4,7 +4,9 @@ import { useState, useCallback, useRef } from 'react'
 import { format, parseISO } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { LesDetailResult, SkillScore, StudentLesData } from '@/lib/db/queries/school'
+import type { BoatType } from '@/types'
 
+import { skillDefinitions, schoolFleet } from '@/lib/db/schema'
 // ─── AI PANEL ─────────────────────────────────────────────────────────────────
 
 type AiPanelState = {
@@ -155,6 +157,12 @@ export function LesBeoordelingClient({ detail, schoolId }: Props) {
   const [windKracht,   setWindKracht]   = useState(les.windKracht != null ? String(les.windKracht) : '')
   const [windSaving,   setWindSaving]   = useState(false)
 
+
+  // Boottype filter voor NWD ondersteuning
+  const [bootTypeFilter, setBootTypeFilter] = useState<BoatType | null>(null)
+  const filteredSkills = bootTypeFilter
+    ? skills.filter(s => s.bootType === bootTypeFilter || s.cwoLevel !== null)
+    : skills
   const saveWind = async () => {
     setWindSaving(true)
     await fetch(`/api/school/${schoolId}/lessen/${les.id}`, {
@@ -378,6 +386,23 @@ export function LesBeoordelingClient({ detail, schoolId }: Props) {
           />
           <span className="font-label text-xs text-on-surface-variant">
             {windSaving ? 'opslaan…' : 'Bft'}
+
+          {/* Boottype filter voor NWD */}
+          <select
+            value={bootTypeFilter ?? ''}
+            onChange={e => setBootTypeFilter(e.target.value as BoatType || null)}
+            className="ml-auto flex-1 max-w-40 px-3 py-1.5 rounded-xl bg-surface-container border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60"
+            aria-label="Filter op boottype"
+          >
+            <option value="">Alle vaardigheden</option>
+            <option value="valk">Valk</option>
+            <option value="polyvalk">Polyvalk</option>
+            <option value="laser">Laser</option>
+            <option value="laser_pico">Laser Pico</option>
+            <option value="rs_feva">RS Feva</option>
+            <option value="kajuitjacht">Kajuitjacht</option>
+            <option value="catamaran">Catamaran</option>
+          </select>
           </span>
         </div>
 
@@ -438,7 +463,7 @@ export function LesBeoordelingClient({ detail, schoolId }: Props) {
                       : 'bg-surface-container border-white/5 text-on-surface-variant hover:bg-surface-container-high',
                   ].join(' ')}
                   aria-pressed={isActive}
-                  aria-label={`${student.naam ?? 'Cursist'}, ${scored} van ${skills.length} beoordeeld`}
+                  aria-label={`${student.naam ?? 'Cursist'}, ${scored} van ${filteredSkills.length} beoordeeld`}
                 >
                   {/* Avatar */}
                   <div className="w-9 h-9 rounded-full bg-surface-container-high flex-shrink-0 overflow-hidden flex items-center justify-center">
@@ -455,7 +480,7 @@ export function LesBeoordelingClient({ detail, schoolId }: Props) {
                     <div className="flex items-center gap-1 mt-0.5">
                       {/* Mini voortgang bar */}
                       <div className="flex gap-0.5" aria-hidden="true">
-                        {skills.slice(0, 9).map(skill => {
+                        {filteredSkills.slice(0, 9).map(skill => {
                           const sc = state?.scores[skill.id]
                           const dot = scoreConfig(sc)
                           return (
@@ -519,6 +544,7 @@ export function LesBeoordelingClient({ detail, schoolId }: Props) {
             student={studentStates[activeStudent]}
             skills={skills}
             fleet={fleet}
+            bootTypeFilter={bootTypeFilter}
             onSetScore={(skillId, score) => setScore(activeStudent, skillId, score)}
             onSetBoot={bootId => updateStudent(activeStudent, { bootId })}
             onSetSolo={solo => updateStudent(activeStudent, { soloGevaren: solo })}
@@ -534,21 +560,26 @@ export function LesBeoordelingClient({ detail, schoolId }: Props) {
 // ─── STUDENT GRID ─────────────────────────────────────────────────────────────
 
 interface StudentGridProps {
-  student:    StudentState
-  skills:     LesDetailResult['skills']
-  fleet:      LesDetailResult['fleet']
-  onSetScore: (skillId: string, score: SkillScore) => void
-  onSetBoot:  (bootId: string | null) => void
-  onSetSolo:  (solo: boolean) => void
-  onSetNote:  (note: string) => void
-  onSave:     () => void
+  student:        StudentState
+  skills:         typeof skillDefinitions.$inferSelect[]
+  fleet:          typeof schoolFleet.$inferSelect[]
+  bootTypeFilter: BoatType | null
+  onSetScore:     (skillId: string, score: SkillScore) => void
+  onSetBoot:      (bootId: string | null) => void
+  onSetSolo:      (solo: boolean) => void
+  onSetNote:      (note: string) => void
+  onSave:         () => void
 }
 
 function StudentGrid({
-  student, skills, fleet, onSetScore, onSetBoot, onSetSolo, onSetNote, onSave
+  student, skills, fleet, bootTypeFilter, onSetScore, onSetBoot, onSetSolo, onSetNote, onSave
 }: StudentGridProps) {
+  // Filter skills op boottype als NWD wordt gebruikt
+  const displaySkills = bootTypeFilter
+    ? skills.filter(s => s.bootType === bootTypeFilter || s.cwoLevel !== null)
+    : skills
   const beheerst = Object.values(student.scores).filter(v => v === 'beheerst').length
-  const progress = skills.length > 0 ? (beheerst / skills.length) * 100 : 0
+  const progress = displaySkills.length > 0 ? (beheerst / displaySkills.length) * 100 : 0
 
   return (
     <div className="flex-1 min-w-0 bg-surface-container rounded-2xl border border-white/5 overflow-hidden">
@@ -642,7 +673,7 @@ function StudentGrid({
 
       {/* Vaardigheden grid */}
       <div className="divide-y divide-white/5">
-        {skills.map((skill, idx) => {
+        {displaySkills.map((skill, idx) => {
           const currentScore = student.scores[skill.id]
           const config       = scoreConfig(currentScore)
 
