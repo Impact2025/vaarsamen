@@ -612,6 +612,34 @@ export const invoices = pgTable('invoices', {
   schoolIdx: index('invoices_school_idx').on(t.schoolId),
 }))
 
+
+
+// ─── BPR VIDEO MODULE ───────────────────────────────────────────────────────────
+// Basis Praktijk Registratie video uploads + transcriptie
+
+export const bprStatusEnum = pgEnum('bpr_status', [
+  'ingediend', 'beoordeeld', 'geaccordeerd', 'afgekeurd'
+])
+
+export const bprRecordings = pgTable('bpr_recordings', {
+  id:          uuid('id').defaultRandom().primaryKey(),
+  lesId:       uuid('les_id').references(() => schoolLessons.id, { onDelete: 'cascade' }),
+  userId:      uuid('user_id').notNull().references(() => users.id), // cursist
+  schoolId:    uuid('school_id').notNull().references(() => sailingSchools.id),
+  bootType:    boatTypeEnum('boot_type').notNull(),
+  blobKey:     text('blob_key').notNull(), // Vercel Blob key
+  transcript:  text('transcript'),         // AI transcriptie (later)
+  opmerkingen: text('opmerkingen'),
+  status:      bprStatusEnum('status').default('ingediend').notNull(),
+  beoordeeldDoor: uuid('beoordeeld_door').references(() => users.id),
+  score:       integer('score'),           // 1-10 rating
+  reviewedAt:  timestamp('reviewed_at'),
+  createdAt:   timestamp('created_at').defaultNow(),
+  updatedAt:   timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  schoolIdx: index('bpr_recordings_school_idx').on(t.schoolId),
+  userIdx:   index('bpr_recordings_user_idx').on(t.userId),
+}))
 // ─── BOOTBESCHIKBAARHEID ───────────────────────────────────────────────────────────────────────────────────────────────────────
 // Periodes dat een boot niet beschikbaar is voor verhuur (onderhoud, schade, reservering)
 
@@ -772,4 +800,14 @@ export const lessonNotesRelations = relations(lessonNotes, ({ one }) => ({
   lesson:      one(schoolLessons, { fields: [lessonNotes.lessonId],      references: [schoolLessons.id] }),
   student:     one(users,         { fields: [lessonNotes.studentUserId], references: [users.id], relationName: 'note_student' }),
   instructeur: one(users,         { fields: [lessonNotes.instructeurId], references: [users.id], relationName: 'note_instructeur' }),
+}))
+
+
+// ─── BPR RELATIONS ──────────────────────────────────────────────────────────────
+
+export const bprRecordingsRelations = relations(bprRecordings, ({ one }) => ({
+  les:      one(schoolLessons, { fields: [bprRecordings.lesId],      references: [schoolLessons.id] }),
+  user:     one(users,         { fields: [bprRecordings.userId],     references: [users.id] }),
+  school:   one(sailingSchools, { fields: [bprRecordings.schoolId],   references: [sailingSchools.id] }),
+  beoordeeldDoor: one(users, { fields: [bprRecordings.beoordeeldDoor], references: [users.id], relationName: 'bpr_reviewer' }),
 }))
