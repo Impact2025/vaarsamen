@@ -4,6 +4,7 @@ import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { auth } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
+import { ZWALUW_ACCOUNTS, ZWALUW_SCHOOL_ID } from '@/lib/db/seeds/zwaluw'
 
 // Drie demo-rollen: zeilschool, instructeur en zeiler — elk met eigen dashboard
 const [DEMO_EIGENAAR, DEMO_INSTRUCTEUR, DEMO_CURSIST] = DEMO_ACCOUNTS
@@ -175,6 +176,78 @@ export default async function LoginPage({
                 </button>
               </form>
             ))}
+          </div>
+        )}
+
+        {/* Zeilschool De Zwaluw demo accounts */}
+        {isMultiDemoEnabled && (
+          <div className="space-y-2">
+            <p className="font-label text-xs text-primary font-bold mb-2 uppercase tracking-wider">
+              Zeilschool De Zwaluw
+            </p>
+            {ZWALUW_ACCOUNTS.map((account) => (
+              <form
+                key={account.id}
+                action={async () => {
+                  'use server'
+                  try {
+                    await signIn('demo-user', { userId: account.id, redirectTo: '/ontdekken' })
+                  } catch (e: unknown) {
+                    if (isRedirectError(e)) throw e
+                    redirect('/login?error=demo')
+                  }
+                }}
+              >
+                <button
+                  type="submit"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 px-6
+                             glass-card border card-border rounded-full
+                             text-primary font-label font-bold text-sm
+                             hover:shadow-sm active:scale-95 transition-all
+                             focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <span className="material-symbols-outlined text-base" aria-hidden="true"
+                        style={{ fontVariationSettings: "'FILL' 1" }}>
+                    {account.icon}
+                  </span>
+                  Inloggen als {account.label}
+                </button>
+              </form>
+            ))}
+          </div>
+        )}
+
+        {/* Dev-only: directe login zonder email */}
+        {isDev && (
+          <div className="glass-card rounded-2xl p-4 border border-primary/20">
+            <p className="font-label text-xs text-primary font-bold mb-3 uppercase tracking-wider">
+              Dev login
+            </p>
+            <form
+              action={async (formData: FormData) => {
+                'use server'
+                const email = formData.get('email') as string
+                await signIn('dev-login', { email, redirectTo })
+              }}
+              className="flex gap-2"
+            >
+              <label htmlFor="dev-email" className="sr-only">Email dev login</label>
+              <input
+                id="dev-email"
+                name="email"
+                type="email"
+                defaultValue="v.munster@weareimpact.nl"
+                className="form-input flex-1 px-3 py-2.5 rounded-xl text-sm font-body"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2.5 rounded-xl gradient-primary text-on-primary
+                           font-label text-sm font-bold shadow-glow
+                           active:scale-95 transition-all"
+              >
+                Login
+              </button>
+            </form>
           </div>
         )}
       </div>
