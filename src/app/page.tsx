@@ -6,6 +6,20 @@ import { SiteNav } from '@/components/marketing/SiteNav'
 import { AppMockup } from '@/components/marketing/AppMockup'
 import { FaqAccordion, type FaqItem } from '@/components/marketing/FaqAccordion'
 
+/**
+ * Veilige variant van auth() voor openbaar toegankelijke pagina's.
+ * Een corrupt/verlopen sessie-cookie (bijv. JWEInvalid / JWTSessionError)
+ * mag nooit een publieke pagina laten crashen met een 500 — we vangen de
+ * fout af en gaan uit van "geen sessie", zodat de pagina gewoon rendert.
+ */
+async function getSessionSafe() {
+  try {
+    return await auth()
+  } catch {
+    return null
+  }
+}
+
 export const metadata: Metadata = {
   title: 'VaarSamen — Het complete platform voor jouw zeilschool',
   description:
@@ -216,7 +230,7 @@ const STATS = [
 ]
 
 export default async function LandingPage() {
-  const session = await auth()
+  const session = await getSessionSafe()
   if (session?.user) {
     redirect('/ontdekken')
   }

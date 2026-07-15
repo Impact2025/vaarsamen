@@ -11,7 +11,13 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ callbackUrl?: string; error?: string }>
 }) {
-  const session = await auth()
+  let session: { user?: { id?: string } } | null = null
+  try {
+    session = await auth()
+  } catch {
+    // Corrupt/verlopen sessie-cookie mag de login-pagina niet laten crashen
+    session = null
+  }
   if (session?.user?.id) redirect('/ontdekken')
 
   const { callbackUrl, error } = await searchParams
