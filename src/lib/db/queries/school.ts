@@ -1,10 +1,176 @@
 import { db } from '@/lib/db'
+// ─── NIEUWSBRIEF + CRM ──────────────────────────────────────────────────────
+
 import {
   sailingSchools, schoolMemberships, schoolCourses, schoolFleet,
   schoolLessons, lessonStudents, skillDefinitions, skillAssessments, lessonNotes,
   users,
+  newsletterSubscribers, newsletterCampaigns, newsletterSends, crmNotes,
 } from '@/lib/db/schema'
 import { and, eq, isNull, desc, count, inArray, asc, sql } from 'drizzle-orm'
+
+// ─── NIEUWSBRIEF: ABONNEES ───────────────────────────────────────────────────
+
+export type SubscriberRow = {
+  id:           string
+  email:        string
+  naam:         string | null
+  status:       'pending' | 'actief' | 'afgemeld' | 'gebounced'
+  aangemeldVia: string | null
+  createdAt:    Date | null
+  lidNaam:      string | null
+}
+
+export async function getSubscribers(schoolId: string): Promise<SubscriberRow[]> {
+  const rows = await db
+    .select({
+      sub:    newsletterSubscribers,
+      lidNaam: users.name,
+    })
+    .from(newsletterSubscribers)
+    .leftJoin(schoolMemberships, eq(newsletterSubscribers.membershipId, schoolMemberships.id))
+    .leftJoin(users, eq(schoolMemberships.userId, users.id))
+    .where(eq(newsletterSubscribers.schoolId, schoolId))
+    .orderBy(desc(newsletterSubscribers.createdAt))
+
+  return rows.map(r => ({
+    id:           r.sub.id,
+    email:        r.sub.email,
+    naam:         r.sub.naam,
+    status:       r.sub.status,
+    aangemeldVia: r.sub.aangemeldVia,
+    createdAt:    r.sub.createdAt,
+    lidNaam:      r.lidNaam ?? null,
+  }))
+}
+
+export async function getActiveSubscribers(schoolId: string): Promise<typeof newsletterSubscribers.$inferSelect[]> {
+  return db
+    .select()
+    .from(newsletterSubscribers)
+    .where(and(
+      eq(newsletterSubscribers.schoolId, schoolId),
+      eq(newsletterSubscribers.status, 'actief'),
+    ))
+}
+
+// ─── NIEUWSBRIEF: CAMPAGNES ──────────────────────────────────────────────────
+
+export type CampaignRow = typeof newsletterCampaigns.$inferSelect
+
+export async function getCampaigns(schoolId: string): Promise<CampaignRow[]> {
+  return db
+    .select()
+    .from(newsletterCampaigns)
+    .where(eq(newsletterCampaigns.schoolId, schoolId))
+    .orderBy(desc(newsletterCampaigns.createdAt))
+}
+
+export async function getCampaign(campaignId: string, schoolId: string): Promise<CampaignRow | null> {
+  const [c] = await db
+    .select()
+    .from(newsletterCampaigns)
+    .where(and(eq(newsletterCampaigns.id, campaignId), eq(newsletterCampaigns.schoolId, schoolId)))
+    .limit(1)
+  return c ?? null
+}
+
+// ─── NIEUWSBRIEF: STATS ──────────────────────────────────────────────────────
+
+export async function getNewsletterStats(schoolId: string): Promise<{
+  actief: number; pending: number; afgemeld: number; totaal: number
+}> {
+  const rows = await db
+    .select({ status: newsletterSubscribers.status, n: count() })
+    .from(newsletterSubscribers)
+    .where(eq(newsletterSubscribers.schoolId, schoolId))
+    .groupBy(newsletterSubscribers.status)
+
+  const stats = { actief: 0, pending: 0, afgemeld: 0, totaal: 0 }
+  for (const r of rows) {
+    stats.totaal += Number(r.n)
+    if (r.status === 'actief') stats.actief = Number(r.n)
+    else if (r.status === 'pending') stats.pending = Number(r.n)
+    else if (r.status === 'afgemeld') stats.afgemeld = Number(r.n)
+  }
+  return stats
+}
+
+// ─── CRM: CONTACT NOTITIES ───────────────────────────────────────────────────
+
+export type CrmNoteRow = {
+  id:         string
+  kanaal:     string | null
+  inhoud:     string
+  auteurNaam: string | null
+  createdAt:  Date | null
+}
+
+export async function getCrmNotes(membershipId: string): Promise<CrmNoteRow[]> {
+  const rows = await db
+    .select({
+      note:       crmNotes,
+      auteurNaam: users.name,
+    })
+    .from(crmNotes)
+    .leftJoin(users, eq(crmNotes.auteurId, users.id))
+    .where(eq(crmNotes.membershipId, membershipId))
+    .orderBy(desc(crmNotes.createdAt))
+
+  return rows.map(r => ({
+    id:         r.note.id,
+    kanaal:     r.note.kanaal,
+    inhoud:     r.note.inhoud,
+    auteurNaam: r.auteurNaam ?? null,
+    createdAt:  r.note.createdAt,
+  }))
+}
+
+// ─── CRM: LEDEN MET EXTRA VELDEN ─────────────────────────────────────────────
+// Uitbreiding van getSchoolLeden met lifecycle/tags/geboortedatum
+
+export type SchoolLidUitgebreid = SchoolLid & {
+  lifecycleStatus: string | null
+  tags:            string[] | null
+  geboortedatum:   string | null
+  laatstContact:   Date | null
+  nieuwsbrief:     boolean | null
+}
+
+export async function getSchoolLedenUitgebreid(schoolId: string): Promise<SchoolLidUitgebreid[]> {
+  const rows = await db
+    .select({
+      user:          users,
+      role:          schoolMemberships.role,
+      joinedAt:      schoolMemberships.joinedAt,
+      lifecycleStatus: schoolMemberships.lifecycleStatus,
+      tags:          schoolMemberships.tags,
+      geboortedatum: schoolMemberships.geboortedatum,
+      laatstContact: schoolMemberships.laatstContact,
+      nieuwsbrief:   schoolMemberships.nieuwsbrief,
+    })
+    .from(schoolMemberships)
+    .innerJoin(users, eq(schoolMemberships.userId, users.id))
+    .where(and(
+      eq(schoolMemberships.schoolId, schoolId),
+      isNull(schoolMemberships.deletedAt),
+    ))
+    .orderBy(schoolMemberships.role, users.name)
+
+  return rows.map(r => ({
+    userId:         r.user.id,
+    naam:           r.user.name,
+    email:          r.user.email,
+    image:          r.user.image,
+    role:           r.role,
+    joinedAt:       r.joinedAt,
+    lifecycleStatus: r.lifecycleStatus,
+    tags:           r.tags,
+    geboortedatum:  r.geboortedatum,
+    laatstContact:  r.laatstContact,
+    nieuwsbrief:    r.nieuwsbrief,
+  }))
+}
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
