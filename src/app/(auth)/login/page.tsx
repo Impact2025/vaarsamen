@@ -220,7 +220,11 @@ export default async function LoginPage({
                 action={async () => {
                   'use server'
                   try {
-                    await signIn('demo-user', { userId: account.id, redirectTo: '/ontdekken' })
+                    // Eigenaar/Instructeur → schooldashboard, cursist → eigen vorderingen
+                    const dest = account.label === 'Demo cursist'
+                      ? '/mijn-vorderingen'
+                      : `/school/${ZWALUW_SCHOOL_ID}/dashboard`
+                    await signIn('demo-user', { userId: account.id, redirectTo: dest })
                   } catch (e: unknown) {
                     if (isRedirectError(e)) throw e
                     redirect('/login?error=demo')
