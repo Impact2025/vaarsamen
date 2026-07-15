@@ -39,6 +39,46 @@ if (process.env.RESEND_API_KEY) {
   })
 }
 
+// Dev login: direct inloggen op e-mail zonder magic link (nooit in productie)
+if (process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_LOGIN) {
+  providers.push(
+    Credentials({
+      id:   'dev-login',
+      name: 'Dev Login',
+      credentials: { email: { label: 'E-mail', type: 'email' } },
+      async authorize(credentials) {
+        const email = (credentials?.email as string | undefined)?.trim().toLowerCase()
+        if (!email) return null
+        let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
+        if (!user) {
+          ;[user] = await db
+            .insert(users)
+            .values({ email, emailVerified: new Date() })
+            .returning()
+        }
+        return { id: user.id, email: user.email, name: user.name, image: user.image }
+      },
+    })
+  )
+}
+
+// Legacy single demo login: logt in als DEMO_EMAIL (school eigenaar)
+if (process.env.NODE_ENV !== 'production' && process.env.DEMO_EMAIL) {
+  providers.push(
+    Credentials({
+      id:   'demo-login',
+      name: 'Demo Login',
+      credentials: {},
+      async authorize() {
+        const email = process.env.DEMO_EMAIL!.trim().toLowerCase()
+        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
+        if (!user) return null
+        return { id: user.id, email: user.email, name: user.name, image: user.image }
+      },
+    })
+  )
+}
+
 // Multi-demo: meerdere demo accounts (instructeur + cursist)
 // Ondersteunt Zeilschool De Zwaluw accounts
 if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_USERS) {

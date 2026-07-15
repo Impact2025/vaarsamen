@@ -41,6 +41,8 @@ export async function seedKB2Skills() {
     .values(values)
     .onConflictDoUpdate({
       target: [skillDefinitions.cwoLevel, skillDefinitions.code],
+      // Matcht de partiële unique-index skill_definitions_code_uniq (WHERE boot_type IS NULL)
+      targetWhere: sql`${skillDefinitions.bootType} IS NULL`,
       set: {
         naam:      sql`excluded.naam`,
         sortOrder: sql`excluded.sort_order`,
