@@ -175,6 +175,15 @@ export function OverzichtClient({ schoolId, schoolNaam, data, myRole, isStaff }:
           <span className="material-symbols-outlined text-base" aria-hidden="true">dashboard</span>
           Uitgebreid dashboard
         </Link>
+        {isStaff && (
+          <Link
+            href={`/school/${schoolId}/financieel`}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-label text-xs text-primary/80 hover:text-primary hover:bg-primary/10 transition-colors border border-primary/20"
+          >
+            <span className="material-symbols-outlined text-base" aria-hidden="true">euro</span>
+            Financieel
+          </Link>
+        )}
       </div>
 
       {/* KPI-strip */}

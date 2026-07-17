@@ -48,21 +48,21 @@ export default async function SchoolLayout({ children, params }: Props) {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-label text-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
                 >
                   <span className="material-symbols-outlined text-base" aria-hidden="true">space_dashboard</span>
-                  <span className="hidden sm:inline">Command</span>
+                  <span>Command</span>
                 </Link>
                 <Link
                   href={`/school/${schoolId}/financieel`}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-label text-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
                 >
                   <span className="material-symbols-outlined text-base" aria-hidden="true">euro</span>
-                  <span className="hidden sm:inline">Financieel</span>
+                  <span>Financieel</span>
                 </Link>
                 <Link
                   href={`/school/${schoolId}/dashboard`}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-label text-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
                 >
                   <span className="material-symbols-outlined text-base" aria-hidden="true">dashboard</span>
-                  <span className="hidden sm:inline">Beheer</span>
+                  <span>Beheer</span>
                 </Link>
               </>
             )}
