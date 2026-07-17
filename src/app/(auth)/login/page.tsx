@@ -5,20 +5,32 @@ import { auth } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
 
+// Drie demo-rollen: zeilschool, instructeur en zeiler — elk met eigen dashboard
+const [DEMO_EIGENAAR, DEMO_INSTRUCTEUR, DEMO_CURSIST] = DEMO_ACCOUNTS
+const DEMO_ROLES = [
+  { userId: DEMO_EIGENAAR.id,    label: 'zeilschool',  icon: DEMO_EIGENAAR.icon,    dest: `/school/${DEMO_SCHOOL_ID}/dashboard` },
+  { userId: DEMO_INSTRUCTEUR.id, label: 'instructeur', icon: DEMO_INSTRUCTEUR.icon, dest: `/school/${DEMO_SCHOOL_ID}/dashboard` },
+  { userId: DEMO_CURSIST.id,     label: 'zeiler',      icon: DEMO_CURSIST.icon,     dest: '/mijn-vorderingen' },
+]
+
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ callbackUrl?: string; error?: string }>
 }) {
-  const session = await auth()
+  let session: { user?: { id?: string } } | null = null
+  try {
+    session = await auth()
+  } catch {
+    // Corrupt/verlopen sessie-cookie mag de login-pagina niet laten crashen
+    session = null
+  }
   if (session?.user?.id) redirect('/ontdekken')
 
   const { callbackUrl, error } = await searchParams
   const redirectTo    = callbackUrl ?? '/ontdekken'
   const isRegistering = callbackUrl === '/onboarding'
 
-  const isDev              = process.env.NODE_ENV !== 'production' || !!process.env.ALLOW_DEV_LOGIN
-  const isDemoEnabled      = !!process.env.DEMO_EMAIL
   const isMultiDemoEnabled = !!process.env.ALLOW_DEMO_USERS
 
   return (
@@ -131,51 +143,16 @@ export default async function LoginPage({
           Minimale leeftijd: 16 jaar.
         </p>
 
-        {/* Demo account knop */}
-        {isDemoEnabled && (
-          <form
-            action={async () => {
-              'use server'
-              try {
-                await signIn('demo-login', {
-                  redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
-                })
-              } catch (e: unknown) {
-                if (isRedirectError(e)) throw e
-                redirect('/login?error=demo')
-              }
-            }}
-          >
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-6
-                         glass-card border card-border rounded-full
-                         text-primary font-label font-bold text-sm
-                         hover:shadow-sm active:scale-95 transition-all
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <span className="material-symbols-outlined text-base" aria-hidden="true"
-                    style={{ fontVariationSettings: "'FILL' 1" }}>
-                play_circle
-              </span>
-              Probeer met demo account
-            </button>
-          </form>
-        )}
-
-        {/* Multi-demo: instructeur + cursist knoppen */}
+        {/* Demo: één knop per rol, elk naar het eigen dashboard */}
         {isMultiDemoEnabled && (
           <div className="space-y-2">
-            {DEMO_ACCOUNTS.map((account) => (
+            {DEMO_ROLES.map((role) => (
               <form
-                key={account.id}
+                key={role.userId}
                 action={async () => {
                   'use server'
                   try {
-                    const dest = account.id === DEMO_ACCOUNTS[0].id
-                      ? `/school/${DEMO_SCHOOL_ID}/dashboard`
-                      : `/mijn-vorderingen`
-                    await signIn('demo-user', { userId: account.id, redirectTo: dest })
+                    await signIn('demo-user', { userId: role.userId, redirectTo: role.dest })
                   } catch (e: unknown) {
                     if (isRedirectError(e)) throw e
                     redirect('/login?error=demo')
@@ -192,46 +169,12 @@ export default async function LoginPage({
                 >
                   <span className="material-symbols-outlined text-base" aria-hidden="true"
                         style={{ fontVariationSettings: "'FILL' 1" }}>
-                    {account.icon}
+                    {role.icon}
                   </span>
-                  Inloggen als {account.label}
+                  Inloggen als {role.label}
                 </button>
               </form>
             ))}
-          </div>
-        )}
-
-        {/* Dev-only: directe login zonder email */}
-        {isDev && (
-          <div className="glass-card rounded-2xl p-4 border border-primary/20">
-            <p className="font-label text-xs text-primary font-bold mb-3 uppercase tracking-wider">
-              Dev login
-            </p>
-            <form
-              action={async (formData: FormData) => {
-                'use server'
-                const email = formData.get('email') as string
-                await signIn('dev-login', { email, redirectTo })
-              }}
-              className="flex gap-2"
-            >
-              <label htmlFor="dev-email" className="sr-only">Email dev login</label>
-              <input
-                id="dev-email"
-                name="email"
-                type="email"
-                defaultValue="v.munster@weareimpact.nl"
-                className="form-input flex-1 px-3 py-2.5 rounded-xl text-sm font-body"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2.5 rounded-xl gradient-primary text-on-primary
-                           font-label text-sm font-bold shadow-glow
-                           active:scale-95 transition-all"
-              >
-                Login
-              </button>
-            </form>
           </div>
         )}
       </div>

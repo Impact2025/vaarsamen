@@ -21,6 +21,13 @@ export const DEMO_CURSIST_DAAN    = 'aadde100-0000-0000-0000-000000000007'
 // Demo login accounts (zichtbaar op /school/login als ALLOW_DEMO_USERS=true)
 export const DEMO_ACCOUNTS = [
   {
+    id:    DEMO_EIGENAAR_ID,
+    name:  'Jan de Boer',
+    email: 'eigenaar.demo@vaarsamen.nl',
+    label: 'Demo zeilschoolhouder',
+    icon:  'shield_person',
+  },
+  {
     id:    DEMO_INSTRUCTEUR_ID,
     name:  'Petra Smit',
     email: 'instructeur.demo@vaarsamen.nl',
