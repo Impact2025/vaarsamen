@@ -179,3 +179,33 @@ export const vlootBootSchema = z.object({
   bootType:   z.enum(['valk', 'polyvalk', 'laser', 'laser_pico', 'rs_feva', 'kajuitjacht', 'catamaran', 'anders']).optional(),
   naam:       z.string().max(100).optional(),
 })
+
+// ─── NIEUWSBRIEF ──────────────────────────────────────────────────────────────
+
+export const subscriberSchema = z.object({
+  email: z.string().email('Voer een geldig e-mailadres in'),
+  naam:  z.string().max(100).optional(),
+})
+
+export const campaignSchema = z.object({
+  titel:   z.string().min(2, 'Titel moet minimaal 2 tekens zijn').max(150),
+  subject: z.string().min(2, 'Onderwerp is verplicht').max(200),
+  inhoud:  z.string().min(10, 'Schrijf eerst wat inhoud').max(50000),
+})
+
+export const campaignSendSchema = z.object({
+  campaignId: z.string().min(1, 'Campagne ID vereist'),
+})
+
+// ─── CRM ────────────────────────────────────────────────────────────────────
+
+export const crmNoteSchema = z.object({
+  kanaal: z.enum(['notitie', 'email', 'telefoon', 'sms', 'gesprek']).default('notitie'),
+  inhoud: z.string().min(1, 'Notitie mag niet leeg zijn').max(2000),
+})
+
+export const crmUpdateSchema = z.object({
+  lifecycleStatus: z.enum(['lead', 'actief', 'inactief', 'oud_cursist', 'opgezegd']).optional(),
+  tags:            z.array(z.string().max(40)).max(20).optional(),
+  geboortedatum:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Gebruik formaat YYYY-MM-DD').optional().nullable(),
+})

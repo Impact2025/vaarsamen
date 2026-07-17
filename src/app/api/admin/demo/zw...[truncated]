@@ -1,0 +1,18 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { seedZwaluw } from '@/lib/db/seeds/zwaluw'
+
+export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Niet beschikbaar in productie' }, { status: 403 })
+  }
+
+  try {
+    const result = await seedZwaluw()
+    return NextResponse.json({ success: true, ...result })
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Onbekende fout' },
+      { status: 500 }
+    )
+  }
+}

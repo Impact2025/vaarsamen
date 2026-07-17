@@ -219,3 +219,96 @@ export function reportNotificationText({
     'Controleer via het admin dashboard: https://vaarsamen.nl/admin',
   ].filter(Boolean).join('\n')
 }
+
+// ─────────────────────────────────────────────
+// Template 3: Nieuwsbrief double-opt-in bevestiging
+// ─────────────────────────────────────────────
+
+export function newsletterConfirmEmail({
+  schoolName,
+  confirmUrl,
+}: {
+  schoolName: string
+  confirmUrl: string
+}): string {
+  const content = `
+    ${heading(`Bevestig je inschrijving`)}
+    ${bodyText(`Bedankt voor je interesse in de nieuwsbrief van ${schoolName}. Klik op de knop hieronder om je inschrijving te bevestigen. Zo weten we zeker dat dit echt jouw e-mailadres is.`)}
+    ${ctaButton('Inschrijving bevestigen', confirmUrl)}
+    ${divider()}
+    ${mutedText('Geen nieuwsbrief van ons verwacht? Dan kun je deze email veilig negeren. Je wordt dan niet ingeschreven.')}
+  `
+  return wrap(content)
+}
+
+export function newsletterConfirmText({
+  schoolName,
+  confirmUrl,
+}: {
+  schoolName: string
+  confirmUrl: string
+}): string {
+  return [
+    `${schoolName} — Bevestig je nieuwsbrief-inschrijving`,
+    '',
+    `Klik op de onderstaande link om je inschrijving voor de nieuwsbrief van ${schoolName} te bevestigen:`,
+    confirmUrl,
+    '',
+    'Geen nieuwsbrief verwacht? Negeer deze mail.',
+    '',
+    '— VaarSamen',
+  ].join('\n')
+}
+
+// ─────────────────────────────────────────────
+// Template 4: Nieuwsbrief zelf (campagne body)
+// ─────────────────────────────────────────────
+// Wrap een door de school geschreven HTML-body in het merk-template,
+// met verplichte uitschrijf- en webversie-links (AVG).
+
+export function newsletterCampaignEmail({
+  schoolName,
+  subject,
+  bodyHtml,
+  unsubscribeUrl,
+  webUrl,
+}: {
+  schoolName: string
+  subject: string
+  bodyHtml: string
+  unsubscribeUrl: string
+  webUrl: string
+}): string {
+  const content = `
+    ${bodyHtml}
+    ${divider()}
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+      <tr>
+        <td align="center" style="padding-top:8px;">
+          <p style="margin:0 0 8px;font-size:12px;color:${TEXT_FOOTER};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+            Je ontvangt deze mail van ${schoolName} via VaarSamen.
+          </p>
+          <p style="margin:0;font-size:12px;color:${TEXT_FOOTER};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+            <a href="${webUrl}" style="color:${TEAL_DARK};text-decoration:none;">Bekijk in je browser</a>
+            &nbsp;·&nbsp;
+            <a href="${unsubscribeUrl}" style="color:${TEAL_DARK};text-decoration:none;">Uitschrijven</a>
+          </p>
+        </td>
+      </tr>
+    </table>
+  `
+  return wrap(content)
+}
+
+// ─────────────────────────────────────────────
+// Template 5: Bevestiging uitschrijven
+// ─────────────────────────────────────────────
+
+export function newsletterUnsubscribeEmail({ schoolName }: { schoolName: string }): string {
+  const content = `
+    ${heading(`Uitgeschreven`)}
+    ${bodyText(`Je ontvangt geen nieuwsbrieven meer van ${schoolName}. Bedankt voor het zeilen met ons!`)}
+    ${mutedText('Je kunt je altijd opnieuw inschrijven via de website van de school.')}
+  `
+  return wrap(content)
+}

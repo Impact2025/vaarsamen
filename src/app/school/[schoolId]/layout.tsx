@@ -26,7 +26,7 @@ export default async function SchoolLayout({ children, params }: Props) {
     <div className="min-h-dvh bg-surface flex flex-col">
       {/* Top bar */}
       <header className="sticky top-0 z-40 bg-surface-container/80 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center gap-3">
+        <div className="max-w-[90rem] mx-auto px-4 lg:px-8 h-14 flex items-center gap-3">
           <Link
             href="/"
             className="p-2 -ml-2 rounded-xl text-on-surface-variant hover:text-on-surface transition-colors"
@@ -73,7 +73,7 @@ export default async function SchoolLayout({ children, params }: Props) {
       </header>
 
       {/* Main content — full width voor tablet UI */}
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 max-w-[90rem] mx-auto w-full px-4 lg:px-8 py-6">
         {children}
       </main>
     </div>
