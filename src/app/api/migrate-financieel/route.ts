@@ -21,7 +21,11 @@ export async function POST(req: Request) {
     `ALTER TABLE "public"."school_memberships" ADD COLUMN IF NOT EXISTS "sepa_naam" varchar(70)`,
     `ALTER TABLE "public"."school_memberships" ADD COLUMN IF NOT EXISTS "sepa_machtiging_id" varchar(35)`,
     `ALTER TABLE "public"."school_memberships" ADD COLUMN IF NOT EXISTS "sepa_machtiging_op" timestamp`,
-    `CREATE TYPE IF NOT EXISTS membership_fee_status AS ENUM ('open','betaald')`,
+    `DO $$ BEGIN
+       IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'membership_fee_status') THEN
+         CREATE TYPE membership_fee_status AS ENUM ('open','betaald');
+       END IF;
+     END $$;`,
     `ALTER TABLE "public"."sailing_schools" ADD COLUMN IF NOT EXISTS "financieel" jsonb`,
     `ALTER TABLE "public"."newsletter_campaigns" ADD COLUMN IF NOT EXISTS "template" varchar(40)`,
   ]
