@@ -13,14 +13,6 @@ const DEMO_ROLES = [
   { userId: DEMO_CURSIST.id,     label: 'zeiler',      icon: DEMO_CURSIST.icon,     dest: '/mijn-vorderingen' },
 ]
 
-// Drie demo-rollen: zeilschool, instructeur en zeiler — elk met eigen dashboard
-const [DEMO_EIGENAAR, DEMO_INSTRUCTEUR, DEMO_CURSIST] = DEMO_ACCOUNTS
-const DEMO_ROLES = [
-  { userId: DEMO_EIGENAAR.id,    label: 'zeilschool',  icon: DEMO_EIGENAAR.icon,    dest: `/school/${DEMO_SCHOOL_ID}/dashboard` },
-  { userId: DEMO_INSTRUCTEUR.id, label: 'instructeur', icon: DEMO_INSTRUCTEUR.icon, dest: `/school/${DEMO_SCHOOL_ID}/dashboard` },
-  { userId: DEMO_CURSIST.id,     label: 'zeiler',      icon: DEMO_CURSIST.icon,     dest: '/mijn-vorderingen' },
-]
-
 export default async function LoginPage({
   searchParams,
 }: {
