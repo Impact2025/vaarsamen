@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { schoolMemberships, users } from '@/lib/db/schema'
+import { schoolMemberships, users , isStaff } from '@/lib/db/schema'
 import { schoolMemberSchema } from '@/lib/validations'
 import { getSchoolMembership, getSchoolLeden } from '@/lib/db/queries/school'
 import { and, eq, isNull } from 'drizzle-orm'
@@ -15,7 +15,7 @@ export async function GET(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
@@ -33,7 +33,7 @@ export async function POST(
 
   const { schoolId } = await params
   const myMembership = await getSchoolMembership(schoolId, session.user.id)
-  if (!myMembership || myMembership.role === 'cursist') {
+  if (!myMembership || !isStaff(myMembership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
@@ -50,7 +50,8 @@ export async function POST(
 
   if (!user) {
     return Response.json({
-      error: 'Geen VaarSamen account gevonden met dit e-mailadres. De cursist moet eerst inloggen op VaarSamen.'
+      error: 'Geen VaarSamen account met dit e-mailadres. Gebruik "Uitnodigen" om deze persoon een aanmeldlink te mailen.',
+      code:  'geen_account',
     }, { status: 404 })
   }
 

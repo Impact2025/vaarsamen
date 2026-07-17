@@ -23,6 +23,8 @@ export default auth((req) => {
   const isPublicPage = ['/', '/login', '/registreer', '/check-email', '/school/login', '/demo'].includes(pathname)
     || pathname.startsWith('/school/join/')
     || pathname.startsWith('/boet')
+    // Een uitgenodigde is nog niet ingelogd: de pagina regelt zelf de inlogstap.
+    || pathname.startsWith('/uitnodiging/')
   const isPublicApi  = PUBLIC_API_ROUTES.some(r => pathname.startsWith(r))
   const isStaticFile = pathname.startsWith('/_next')
     || pathname.startsWith('/favicon')

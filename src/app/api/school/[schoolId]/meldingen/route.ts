@@ -1,8 +1,8 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { boatIssues, schoolFleet, users } from '@/lib/db/schema'
+import { boatIssues, boatIssueHistory, schoolFleet, users, schoolMemberships } from '@/lib/db/schema'
 import { getSchoolMembership } from '@/lib/db/queries/school'
-import { and, eq, desc, isNull } from 'drizzle-orm'
+import { and, eq, desc, isNull, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 
 const meldingSchema = z.object({
@@ -13,7 +13,15 @@ const meldingSchema = z.object({
   rentalId:     z.string().uuid().optional(),
 })
 
-// GET /api/school/[schoolId]/meldingen — alle meldingen voor de school
+// Rollen die de klussenlijst mogen zien / meldingen mogen doen.
+// Staff (eigenaar/instructeur) + klusser (onderhoud) + lid (mag melden).
+const KLUSSEN_LEZEN = ['eigenaar', 'instructeur', 'klusser', 'lid'] as const
+function magLezen(role: string | undefined): boolean {
+  return !!role && (KLUSSEN_LEZEN as readonly string[]).includes(role)
+}
+
+// GET /api/school/[schoolId]/meldingen — klussenlijst voor de school
+// Toegankelijk voor: staff, klusser, lid én de huurder van een gekoppelde verhuur.
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ schoolId: string }> }
@@ -23,9 +31,6 @@ export async function GET(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
-    return Response.json({ error: 'Geen toegang' }, { status: 403 })
-  }
 
   const rows = await db
     .select({
@@ -39,10 +44,48 @@ export async function GET(
     .where(eq(boatIssues.schoolId, schoolId))
     .orderBy(desc(boatIssues.createdAt))
 
-  return Response.json({ meldingen: rows })
+  // Voor toewijzing: naam van toegewezen klusser ophalen
+  const toegewezenIds = rows.map(r => r.issue.assignedTo).filter(Boolean) as string[]
+  const toegewezenMap: Record<string, string> = {}
+  if (toegewezenIds.length) {
+    const usrs = await db.select({ id: users.id, name: users.name, email: users.email })
+      .from(users).where(inArray(users.id, toegewezenIds))
+    for (const u of usrs) toegewezenMap[u.id] = u.name ?? u.email ?? '?'
+  }
+
+  // Huurder (geen leesrol) mag alleen meldingen zien waarvan hij de verhuurder is.
+  const magAlles = magLezen(membership?.role)
+  const zichtbaar = magAlles
+    ? rows
+    : rows.filter(r => r.issue.rentalId != null && r.issue.reportedBy === session.user.id)
+
+  // Voor toewijzing: leden die een klus mogen oppakken (klusser, lid/instructeur/eigenaar).
+  const klusKandidaten = await db
+    .select({ id: schoolMemberships.userId, naam: users.name, role: schoolMemberships.role })
+    .from(schoolMemberships)
+    .innerJoin(users, eq(schoolMemberships.userId, users.id))
+    .where(and(
+      eq(schoolMemberships.schoolId, schoolId),
+      isNull(schoolMemberships.deletedAt),
+      inArray(schoolMemberships.role, ['klusser', 'lid', 'instructeur', 'eigenaar']),
+    ))
+    .orderBy(users.name)
+
+  return Response.json({
+    magMelden: magAlles || !!membership,
+    rollen: membership?.role ?? null,
+    magToewijzen: ['eigenaar', 'instructeur', 'klusser'].includes(membership?.role ?? ''),
+    klusKandidaten: klusKandidaten.map(k => ({ id: k.id, naam: k.naam ?? '?', role: k.role })),
+    meldingen: zichtbaar.map(r => ({
+      ...r,
+      toegewezenNaam: r.issue.assignedTo ? toegewezenMap[r.issue.assignedTo] ?? null : null,
+    })),
+  })
 }
 
-// POST /api/school/[schoolId]/meldingen — nieuwe melding aanmaken (handmatig door staff)
+// POST /api/school/[schoolId]/meldingen — nieuwe melding
+// Toegankelijk voor staff én leden (klussen melden). Huurders melden via
+// de verhuur-rapportroute (gekoppeld aan hun boeking).
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ schoolId: string }> }
@@ -52,8 +95,10 @@ export async function POST(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
-    return Response.json({ error: 'Geen toegang' }, { status: 403 })
+  // Mag melden: staff, klusser of lid. (Huurder via rapport-route.)
+  const magMelden = !!membership && (KLUSSEN_LEZEN as readonly string[]).includes(membership.role)
+  if (!magMelden) {
+    return Response.json({ error: 'Geen toegang om te melden' }, { status: 403 })
   }
 
   const body   = await req.json()
@@ -73,6 +118,14 @@ export async function POST(
       status:       'gemeld',
     })
     .returning()
+
+  // Historie: aanmaak
+  await db.insert(boatIssueHistory).values({
+    issueId:  melding.id,
+    actorId:  session.user.id,
+    actie:    'aangemaakt',
+    naarWaarde: parsed.data.titel,
+  })
 
   return Response.json({ melding }, { status: 201 })
 }

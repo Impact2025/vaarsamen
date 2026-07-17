@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { schoolMemberships } from '@/lib/db/schema'
+import { schoolMemberships , isStaff } from '@/lib/db/schema'
 import { getSchoolMembership } from '@/lib/db/queries/school'
 import { crmUpdateSchema } from '@/lib/validations'
 import { eq, and, isNull } from 'drizzle-orm'
@@ -16,7 +16,7 @@ export async function PATCH(
 
   const { schoolId } = await params
   const myMembership = await getSchoolMembership(schoolId, session.user.id)
-  if (!myMembership || myMembership.role === 'cursist') {
+  if (!myMembership || !isStaff(myMembership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 

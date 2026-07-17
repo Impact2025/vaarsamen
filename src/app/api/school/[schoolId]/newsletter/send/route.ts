@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { newsletterCampaigns, newsletterSubscribers, newsletterSends } from '@/lib/db/schema'
+import { newsletterCampaigns, newsletterSubscribers, newsletterSends , isStaff } from '@/lib/db/schema'
 import { getSchoolMembership, getSchoolById, getActiveSubscribers } from '@/lib/db/queries/school'
 import { sendEmail } from '@/lib/email'
 import { newsletterCampaignEmail } from '@/emails/templates'
@@ -20,7 +20,7 @@ export async function POST(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 

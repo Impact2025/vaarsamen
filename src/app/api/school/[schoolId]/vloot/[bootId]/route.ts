@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { schoolFleet } from '@/lib/db/schema'
+import { schoolFleet , isStaff } from '@/lib/db/schema'
 import { vlootBootSchema } from '@/lib/validations'
 import { getSchoolMembership } from '@/lib/db/queries/school'
 import { and, eq, isNull } from 'drizzle-orm'
@@ -15,7 +15,7 @@ export async function PUT(
 
   const { schoolId, bootId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
@@ -51,7 +51,7 @@ export async function DELETE(
 
   const { schoolId, bootId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 

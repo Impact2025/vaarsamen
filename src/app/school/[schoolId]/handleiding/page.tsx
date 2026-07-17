@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getSchoolMembership } from '@/lib/db/queries/school'
+import type { SchoolRole } from '@/lib/db/schema'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -523,21 +524,32 @@ function Kbd({ children, className = '' }: { children: React.ReactNode; classNam
   )
 }
 
-function RolBadge({ role }: { role: 'eigenaar' | 'instructeur' | 'cursist' }) {
-  const styles: Record<typeof role, string> = {
+function RolBadge({ role }: { role: SchoolRole }) {
+  const styles: Record<SchoolRole, string> = {
     eigenaar:    'bg-amber-500/15 text-amber-300 border-amber-400/20',
     instructeur: 'bg-primary/15 text-primary border-primary/20',
     cursist:     'bg-white/8 text-on-surface-variant border-white/10',
+    lid:         'bg-sky-500/15 text-sky-300 border-sky-400/20',
+    klusser:     'bg-orange-500/15 text-orange-300 border-orange-400/20',
   }
-  const labels: Record<typeof role, string> = {
+  const labels: Record<SchoolRole, string> = {
     eigenaar:    'Eigenaar — volledige toegang',
     instructeur: 'Instructeur — lessen & cursisten',
     cursist:     'Cursist — eigen vorderingen',
+    lid:         'Lid — boten huren na goedkeuring',
+    klusser:     'Klusser — klussenlijst & onderhoud',
+  }
+  const icons: Record<SchoolRole, string> = {
+    eigenaar:    'star',
+    instructeur: 'person_check',
+    cursist:     'school',
+    lid:         'sailing',
+    klusser:     'build',
   }
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-label text-[11px] font-semibold ${styles[role]}`}>
       <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
-        {role === 'eigenaar' ? 'star' : role === 'instructeur' ? 'person_check' : 'school'}
+        {icons[role]}
       </span>
       {labels[role]}
     </span>

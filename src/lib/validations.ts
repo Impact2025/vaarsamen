@@ -167,10 +167,41 @@ export const lessonNoteSchema = z.object({
 
 // ─── LID TOEVOEGEN ────────────────────────────────────────────────────────────
 
+// Rollen die staff mag uitdelen. 'eigenaar' staat hier bewust niet tussen:
+// eigenaarschap overdragen is een aparte handeling, geen dropdown-keuze.
+export const TOEKENBARE_ROLLEN = ['instructeur', 'cursist', 'lid', 'klusser'] as const
+
 export const schoolMemberSchema = z.object({
   email: z.string().email('Voer een geldig e-mailadres in'),
-  role:  z.enum(['instructeur', 'cursist']),
+  role:  z.enum(TOEKENBARE_ROLLEN),
 })
+
+// ─── LID UITNODIGEN (persoonlijke mail) ───────────────────────────────────────
+
+export const ledenInviteSchema = z.object({
+  email: z.string().email('Voer een geldig e-mailadres in'),
+  naam:  z.string().min(2, 'Naam is te kort').max(200).optional(),
+  role:  z.enum(TOEKENBARE_ROLLEN).default('lid'),
+})
+
+// ─── ONBOARDING BIJ EEN SCHOOL ────────────────────────────────────────────────
+
+export const schoolOnboardingSchema = z.object({
+  naam:        z.string().min(2, 'Vul je naam in').max(200),
+  telefoon:    z.string().min(6, 'Vul een geldig telefoonnummer in').max(30),
+  geboortedatum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ongeldige datum').optional(),
+  ervaring:    z.string().max(2000).optional(),
+  noodContact: z.string().min(4, 'Vul een noodcontact in').max(200),
+  nieuwsbrief: z.boolean().default(true),
+  akkoord:     z.literal(true, { message: 'Je moet akkoord gaan met de voorwaarden' }),
+})
+
+// ─── LID GOEDKEUREN / AFWIJZEN ────────────────────────────────────────────────
+
+export const ledenBeoordelingSchema = z.discriminatedUnion('actie', [
+  z.object({ actie: z.literal('goedkeuren') }),
+  z.object({ actie: z.literal('afwijzen'), reden: z.string().min(3, 'Geef een reden').max(500) }),
+])
 
 // ─── VLOOT BOOT ───────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { schoolInvites, schoolMemberships, sailingSchools } from '@/lib/db/schema'
+import { schoolInvites, schoolMemberships, sailingSchools, isStaff } from '@/lib/db/schema'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 // ─── GET /api/school/join?token=xxx ───────────────────────────────────────
@@ -104,19 +104,26 @@ export async function POST(req: Request) {
     return Response.json({ alreadyMember: true, schoolId, role: existing.role })
   }
 
+  // Een gedeelde link kan doorgestuurd of publiek geplakt worden. Wie er via
+  // binnenkomt moet daarom eerst goedgekeurd worden voordat hij mag huren.
+  // Staff valt daarbuiten: die rol koos de eigenaar zelf bij het maken van de link,
+  // en staff wordt sowieso niet door de verhuurpoort tegengehouden.
+  const startStatus = isStaff(role) ? 'goedgekeurd' as const : 'wacht_op_goedkeuring' as const
+
   // Transactie: membership upsert + atomisch usedCount increment (race-condition-safe)
   try {
     await db.transaction(async (tx) => {
       if (existing && existing.deletedAt) {
         await tx
           .update(schoolMemberships)
-          .set({ role, deletedAt: null, joinedAt: new Date() })
+          .set({ role, deletedAt: null, joinedAt: new Date(), status: startStatus })
           .where(eq(schoolMemberships.id, existing.id))
       } else {
         await tx.insert(schoolMemberships).values({
           schoolId,
           userId: session.user.id,
           role,
+          status: startStatus,
         })
       }
 
