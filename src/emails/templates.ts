@@ -129,6 +129,16 @@ function mutedText(text: string): string {
   return `<p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:${TEXT_MUTED};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">${text}</p>`
 }
 
+// Namen van scholen en leden komen uit gebruikersinvoer en belanden hier in HTML.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // ─────────────────────────────────────────────
 // Template 1: Magic link (inloggen / registreren)
 // ─────────────────────────────────────────────
@@ -309,6 +319,141 @@ export function newsletterUnsubscribeEmail({ schoolName }: { schoolName: string 
     ${heading(`Uitgeschreven`)}
     ${bodyText(`Je ontvangt geen nieuwsbrieven meer van ${schoolName}. Bedankt voor het zeilen met ons!`)}
     ${mutedText('Je kunt je altijd opnieuw inschrijven via de website van de school.')}
+  `
+  return wrap(content)
+}
+
+// ─────────────────────────────────────────────
+// Template 6: Uitnodiging als lid van een zeilschool
+// ─────────────────────────────────────────────
+
+const ROL_OMSCHRIJVING: Record<string, string> = {
+  lid:         'als lid',
+  cursist:     'als cursist',
+  instructeur: 'als instructeur',
+  klusser:     'als klusser',
+}
+
+export function schoolInviteEmail({
+  schoolName, url, naam, role, uitnodigerNaam,
+}: {
+  schoolName: string
+  url:        string
+  naam?:      string | null
+  role:       string
+  uitnodigerNaam?: string | null
+}): string {
+  const aanhef = naam ? `Hoi ${escapeHtml(naam)},` : 'Hoi,'
+  const door   = uitnodigerNaam ? ` door ${escapeHtml(uitnodigerNaam)}` : ''
+  const rol    = ROL_OMSCHRIJVING[role] ?? 'als lid'
+  const content = `
+    ${heading(`Uitnodiging van ${escapeHtml(schoolName)}`)}
+    ${bodyText(aanhef)}
+    ${bodyText(`Je bent${door} uitgenodigd om je ${rol} aan te sluiten bij <strong>${escapeHtml(schoolName)}</strong> op VaarSamen.`)}
+    ${bodyText('Klik op de knop hieronder om je aanmelding af te ronden. Je vult eenmalig een paar gegevens in, daarna beoordeelt de school je aanmelding.')}
+    ${ctaButton('Aanmelding afronden', url)}
+    ${divider()}
+    ${mutedText('Deze uitnodiging is 30 dagen geldig en is persoonlijk.')}
+    ${mutedText('Ken je deze school niet? Dan kun je deze email veilig negeren.')}
+    ${mutedText(`Of kopieer deze link in je browser: <a href="${url}" style="color:${TEAL_DARK};word-break:break-all;">${url}</a>`)}
+  `
+  return wrap(content)
+}
+
+export function schoolInviteText({
+  schoolName, url, role,
+}: { schoolName: string; url: string; role: string }): string {
+  return [
+    `VaarSamen — Uitnodiging van ${schoolName}`,
+    '',
+    `Je bent uitgenodigd om je ${ROL_OMSCHRIJVING[role] ?? 'als lid'} aan te sluiten bij ${schoolName}.`,
+    'Open de onderstaande link om je aanmelding af te ronden.',
+    '',
+    url,
+    '',
+    'Deze uitnodiging is 30 dagen geldig en is persoonlijk.',
+    'Ken je deze school niet? Dan kun je deze email veilig negeren.',
+    '',
+    '— VaarSamen',
+  ].join('\n')
+}
+
+// ─────────────────────────────────────────────
+// Template 7: Aanmelding goedgekeurd / afgewezen
+// ─────────────────────────────────────────────
+
+export function membershipApprovedEmail({
+  schoolName, url, naam,
+}: { schoolName: string; url: string; naam?: string | null }): string {
+  const aanhef = naam ? `Hoi ${escapeHtml(naam)},` : 'Hoi,'
+  const content = `
+    ${heading('Je aanmelding is goedgekeurd')}
+    ${bodyText(aanhef)}
+    ${bodyText(`Goed nieuws — <strong>${escapeHtml(schoolName)}</strong> heeft je aanmelding goedgekeurd. Je kunt nu boten reserveren.`)}
+    ${ctaButton('Naar de school', url)}
+    ${divider()}
+    ${mutedText('Vragen over de regels of beschikbaarheid? Neem contact op met de school.')}
+  `
+  return wrap(content)
+}
+
+export function membershipApprovedText({
+  schoolName, url,
+}: { schoolName: string; url: string }): string {
+  return [
+    `VaarSamen — Je aanmelding bij ${schoolName} is goedgekeurd`,
+    '',
+    `${schoolName} heeft je aanmelding goedgekeurd. Je kunt nu boten reserveren.`,
+    '',
+    url,
+    '',
+    '— VaarSamen',
+  ].join('\n')
+}
+
+export function membershipRejectedEmail({
+  schoolName, reden, naam,
+}: { schoolName: string; reden: string; naam?: string | null }): string {
+  const aanhef = naam ? `Hoi ${escapeHtml(naam)},` : 'Hoi,'
+  const content = `
+    ${heading('Over je aanmelding')}
+    ${bodyText(aanhef)}
+    ${bodyText(`<strong>${escapeHtml(schoolName)}</strong> heeft je aanmelding niet goedgekeurd.`)}
+    ${bodyText(`Toelichting: ${escapeHtml(reden)}`)}
+    ${divider()}
+    ${mutedText('Denk je dat dit niet klopt? Neem dan rechtstreeks contact op met de school.')}
+  `
+  return wrap(content)
+}
+
+export function membershipRejectedText({
+  schoolName, reden,
+}: { schoolName: string; reden: string }): string {
+  return [
+    `VaarSamen — Over je aanmelding bij ${schoolName}`,
+    '',
+    `${schoolName} heeft je aanmelding niet goedgekeurd.`,
+    `Toelichting: ${reden}`,
+    '',
+    'Denk je dat dit niet klopt? Neem dan rechtstreeks contact op met de school.',
+    '',
+    '— VaarSamen',
+  ].join('\n')
+}
+
+// ─────────────────────────────────────────────
+// Template 8: Nieuwe aanmelding wacht op beoordeling (naar staff)
+// ─────────────────────────────────────────────
+
+export function nieuweAanmeldingEmail({
+  schoolName, ledenNaam, ledenEmail, url,
+}: { schoolName: string; ledenNaam: string | null; ledenEmail: string; url: string }): string {
+  const content = `
+    ${heading('Nieuwe aanmelding')}
+    ${bodyText(`<strong>${escapeHtml(ledenNaam ?? ledenEmail)}</strong> heeft de onboarding voor ${escapeHtml(schoolName)} afgerond en wacht op je beoordeling.`)}
+    ${ctaButton('Aanmelding beoordelen', url)}
+    ${divider()}
+    ${mutedText(`E-mailadres: ${escapeHtml(ledenEmail)}`)}
   `
   return wrap(content)
 }

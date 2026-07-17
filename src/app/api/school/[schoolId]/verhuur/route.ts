@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { boatRentals, schoolFleet, users } from '@/lib/db/schema'
+import { boatRentals, schoolFleet, users, isStaff } from '@/lib/db/schema'
 import { getSchoolMembership } from '@/lib/db/queries/school'
 import { and, eq, gte, isNull, lte, desc } from 'drizzle-orm'
 import { z } from 'zod'
@@ -81,6 +81,20 @@ export async function POST(
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
   if (!membership) return Response.json({ error: 'Geen toegang' }, { status: 403 })
+
+  // Boot reserveren mag pas als de school de aanmelding heeft goedgekeurd. Staff
+  // regelt de goedkeuring zelf en valt daar dus buiten.
+  if (!isStaff(membership.role) && membership.status !== 'goedgekeurd') {
+    const uitleg: Record<string, string> = {
+      onboarding:          'Rond eerst je aanmelding bij deze school af.',
+      wacht_op_goedkeuring: 'Je aanmelding wacht nog op goedkeuring door de school.',
+      afgewezen:           'Je aanmelding is niet goedgekeurd. Neem contact op met de school.',
+    }
+    return Response.json({
+      error: uitleg[membership.status] ?? 'Je mag nog geen boot reserveren.',
+      status: membership.status,
+    }, { status: 403 })
+  }
 
   const body = await req.json()
   const parsed = CreateSchema.safeParse(body)

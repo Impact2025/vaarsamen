@@ -1,3 +1,5 @@
+import type { boatTypeEnum } from '@/lib/db/schema'
+
 export type CWOLevel =
   | 'geen' | 'cwo1' | 'cwo2' | 'cwo3' | 'cwo4'
   | 'cwo_kielboot1' | 'cwo_kielboot2' | 'cwo_kielboot3'
@@ -10,9 +12,9 @@ export type MatchReason =
   | 'hoog_beoordeeld'
   | 'vergelijkbaar_niveau'
 
-export type BoatType =
-  | 'valk' | 'polyvalk' | 'laser' | 'laser_pico'
-  | 'rs_feva' | 'kajuitjacht' | 'catamaran' | 'anders'
+// Afgeleid van het schema: een handmatig overgetypte union loopt uit de pas
+// zodra er een boottype bijkomt, en dat merk je pas op de plek van gebruik.
+export type BoatType = (typeof boatTypeEnum.enumValues)[number]
 
 export type SailingRole = 'schipper' | 'bemanning' | 'beide'
 export type LookingFor  = 'dagje_varen' | 'weekend' | 'regatta' | 'zeilvakantie' | 'alles'
@@ -94,6 +96,9 @@ export const BOAT_LABELS: Record<BoatType, string> = {
   kajuitjacht: 'Kajuitjacht',
   catamaran:   'Catamaran',
   anders:      'Anders',
+  kielboot:    'Kielboot',
+  sloep:       'Sloep',
+  kano:        'Kano',
 }
 
 export const SAILING_AREAS = [

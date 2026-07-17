@@ -7,6 +7,7 @@ import {
   users,
   newsletterSubscribers, newsletterCampaigns, newsletterSends, crmNotes,
 } from '@/lib/db/schema'
+import type { SchoolRole, MembershipStatus } from '@/lib/db/schema'
 import { and, eq, isNull, desc, count, inArray, asc, sql } from 'drizzle-orm'
 
 // ─── NIEUWSBRIEF: ABONNEES ───────────────────────────────────────────────────
@@ -143,6 +144,7 @@ export async function getSchoolLedenUitgebreid(schoolId: string): Promise<School
       user:          users,
       role:          schoolMemberships.role,
       joinedAt:      schoolMemberships.joinedAt,
+      status:        schoolMemberships.status,
       lifecycleStatus: schoolMemberships.lifecycleStatus,
       tags:          schoolMemberships.tags,
       geboortedatum: schoolMemberships.geboortedatum,
@@ -164,6 +166,7 @@ export async function getSchoolLedenUitgebreid(schoolId: string): Promise<School
     image:          r.user.image,
     role:           r.role,
     joinedAt:       r.joinedAt,
+    status:         r.status,
     lifecycleStatus: r.lifecycleStatus,
     tags:           r.tags,
     geboortedatum:  r.geboortedatum,
@@ -177,7 +180,7 @@ export async function getSchoolLedenUitgebreid(schoolId: string): Promise<School
 export type SkillScore = 'aangeboden' | 'matig' | 'redelijk' | 'beheerst'
 
 export type SchoolWithRole = typeof sailingSchools.$inferSelect & {
-  role: 'eigenaar' | 'instructeur' | 'cursist'
+  role: SchoolRole
 }
 
 export type LesDetailResult = {
@@ -636,8 +639,9 @@ export type SchoolLid = {
   naam:     string | null
   email:    string
   image:    string | null
-  role:     'eigenaar' | 'instructeur' | 'cursist'
+  role:     SchoolRole
   joinedAt: Date | null
+  status:   MembershipStatus
 }
 
 export async function getSchoolLeden(schoolId: string): Promise<SchoolLid[]> {
@@ -646,6 +650,7 @@ export async function getSchoolLeden(schoolId: string): Promise<SchoolLid[]> {
       user:     users,
       role:     schoolMemberships.role,
       joinedAt: schoolMemberships.joinedAt,
+      status:   schoolMemberships.status,
     })
     .from(schoolMemberships)
     .innerJoin(users, eq(schoolMemberships.userId, users.id))
@@ -662,6 +667,7 @@ export async function getSchoolLeden(schoolId: string): Promise<SchoolLid[]> {
     image:    r.user.image,
     role:     r.role,
     joinedAt: r.joinedAt,
+    status:   r.status,
   }))
 }
 

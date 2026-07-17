@@ -5,6 +5,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { format, parseISO } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { SchoolDashboardData } from '@/lib/db/queries/school'
+import type { SchoolRole, MembershipStatus } from '@/lib/db/schema'
+import LedenBeheer, { STATUS_LABEL, STATUS_STIJL } from './LedenBeheer'
 import { BOAT_LABELS } from '@/types'
 import { AnimatePresence } from 'framer-motion'
 import { DashboardTour } from '@/components/onboarding/DashboardTour'
@@ -57,15 +59,17 @@ interface Props {
   dashboard: SchoolDashboardData
   schoolId:  string
   myUserId:  string
-  myRole:    'eigenaar' | 'instructeur' | 'cursist'
+  myRole:    SchoolRole
 }
 
-type Tab = 'lessen' | 'cursisten' | 'berichten' | 'vloot' | 'leden' | 'nieuwsbrief' | 'verhuur' | 'meldingen' | 'instellingen'
+type Tab = 'lessen' | 'cursisten' | 'berichten' | 'vloot' | 'leden' | 'nieuwsbrief' | 'verhuur' | 'meldingen' | 'klussen' | 'instellingen'
 type CourseRow = SchoolDashboardData['courses'][number]
 
 export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }: Props) {
   const { school, stats, courses, recenteLessen } = dashboard
   const isEigenaar = myRole === 'eigenaar'
+  const isKlusser  = myRole === 'klusser'
+  const isStaff     = isEigenaar || myRole === 'instructeur'
 
   const [activeTab, setActiveTab]         = useState<Tab>('lessen')
   const [openCourse, setOpenCourse]       = useState<string | null>(courses[0]?.id ?? null)
@@ -86,7 +90,18 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
         { id: 'vloot',        label: 'Vloot',        icon: 'sailing'        },
         { id: 'verhuur',      label: 'Verhuur',      icon: 'key'            },
         { id: 'meldingen',    label: 'Meldingen',    icon: 'report'         },
+        { id: 'klussen',      label: 'Klussen',      icon: 'build'          },
         { id: 'instellingen', label: 'Instellingen', icon: 'settings'       },
+      ]
+    : isKlusser
+      ? [
+        { id: 'klussen',      label: 'Klussen',      icon: 'build'          },
+        { id: 'berichten',    label: 'Berichten',    icon: 'forum'          },
+      ]
+    : myRole === 'lid'
+      ? [
+        { id: 'meldingen', label: 'Melden', icon: 'report' },
+        { id: 'berichten', label: 'Berichten', icon: 'forum' },
       ]
     : [
         { id: 'lessen',    label: 'Lessen',    icon: 'calendar_today' },
@@ -226,8 +241,12 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
         <VerhuurTab schoolId={schoolId} toast={toast} />
       )}
 
-      {activeTab === 'meldingen' && isEigenaar && (
+      {activeTab === 'meldingen' && (isEigenaar || myRole === 'lid') && (
         <MeldingenTab schoolId={schoolId} toast={toast} />
+      )}
+
+      {activeTab === 'klussen' && (isKlusser || isStaff) && (
+        <KlussenTab schoolId={schoolId} toast={toast} myUserId={myUserId} isKlusser={isKlusser} />
       )}
 
       {activeTab === 'instellingen' && isEigenaar && (
@@ -855,6 +874,7 @@ function BeschikbaarheidModal({ schoolId, boot, onClose, toast }: {
 type Lid = {
   userId: string; naam: string | null; email: string; image: string | null; role: string; joinedAt: string | null
   lifecycleStatus: string
+  status: MembershipStatus
   tags: string[] | null
   geboortedatum: string | null
   laatstContact: string | null
@@ -879,16 +899,20 @@ function LedenTab({ schoolId, myUserId, toast }: { schoolId: string; myUserId: s
   const [inviteSaving, setInviteSaving] = useState(false)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
-  useEffect(() => {
+  const herlaadLeden = useCallback(() => {
     fetch(`/api/school/${schoolId}/crm/leden`)
       .then(r => r.json())
       .then(d => { setLeden(d.leden ?? []); setLoading(false) })
       .catch(() => setLoading(false))
+  }, [schoolId])
+
+  useEffect(() => {
+    herlaadLeden()
     fetch(`/api/school/${schoolId}/invite`)
       .then(r => r.json())
       .then(d => setInvites(d.invites ?? []))
       .catch(() => {})
-  }, [schoolId])
+  }, [schoolId, herlaadLeden])
 
   async function handleCreateInvite(e: React.FormEvent) {
     e.preventDefault(); setInviteSaving(true)
@@ -993,6 +1017,12 @@ function LedenTab({ schoolId, myUserId, toast }: { schoolId: string; myUserId: s
               <span className={['px-1.5 py-0.5 rounded-md font-label text-[10px] font-semibold', LIFECYCLE_CLS[lid.lifecycleStatus] ?? 'bg-white/8 text-on-surface-variant'].join(' ')}>
                 {LIFECYCLE_LABELS[lid.lifecycleStatus] ?? lid.lifecycleStatus}
               </span>
+              {/* Toegangsstatus staat los van de CRM-status: alleen 'goedgekeurd' mag huren */}
+              {lid.status && lid.status !== 'goedgekeurd' && (
+                <span className={['px-1.5 py-0.5 rounded-md font-label text-[10px] font-semibold', STATUS_STIJL[lid.status]].join(' ')}>
+                  {STATUS_LABEL[lid.status]}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -1266,6 +1296,9 @@ function LedenTab({ schoolId, myUserId, toast }: { schoolId: string; myUserId: s
           </button>
         </div>
       </div>
+
+      {/* Uitnodigen per mail, aanmeldingen beoordelen en openstaande uitnodigingen */}
+      <LedenBeheer schoolId={schoolId} toast={toast} onLedenGewijzigd={herlaadLeden} />
 
       {/* Uitnodigingslink aanmaken */}
       {showInvite && (
@@ -1858,9 +1891,11 @@ type Melding = {
     id: string; titel: string; beschrijving: string | null; status: string
     prioriteit: string | null; internNote: string | null
     createdAt: string; updatedAt: string; resolvedAt: string | null; rentalId: string | null
+    assignedTo: string | null
   }
   boot:   { id: string; bootNummer: string; naam: string | null } | null
   melder: { id: string; name: string | null; email: string } | null
+  toegewezenNaam: string | null
 }
 
 const STATUS_FLOW: { value: string; label: string; cls: string; icon: string }[] = [
@@ -1880,6 +1915,10 @@ const PRIO_CLS: Record<string, string> = {
 
 function MeldingenTab({ schoolId, toast }: { schoolId: string; toast: (msg: string, type?: 'success' | 'error') => void }) {
   const [meldingen, setMeldingen]   = useState<Melding[]>([])
+  const [kandidaten, setKandidaten] = useState<{ id: string; naam: string; role: string }[]>([])
+  const [magToewijzen, setMagToewijzen] = useState(false)
+  const [magMelden, setMagMelden]     = useState(false)
+  const [historie, setHistorie]       = useState<Record<string, any[]>>({})
   const [loading, setLoading]       = useState(true)
   const [filterStatus, setFilter]   = useState<string>('actief')
   const [openId, setOpenId]         = useState<string | null>(null)
@@ -1889,19 +1928,37 @@ function MeldingenTab({ schoolId, toast }: { schoolId: string; toast: (msg: stri
   useEffect(() => {
     fetch(`/api/school/${schoolId}/meldingen`)
       .then(r => r.json())
-      .then(d => { setMeldingen(d.meldingen ?? []); setLoading(false) })
+      .then(d => {
+        setMeldingen(d.meldingen ?? [])
+        setKandidaten(d.klusKandidaten ?? [])
+        setMagToewijzen(!!d.magToewijzen)
+        setMagMelden(!!d.magMelden)
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [schoolId])
 
-  async function updateStatus(id: string, status: string) {
+  async function laadHistorie(id: string) {
+    if (historie[id]) { setOpenId(id); return }
+    const res = await fetch(`/api/school/${schoolId}/meldingen/${id}/historie`)
+    const d = await res.json()
+    setHistorie(prev => ({ ...prev, [id]: d.historie ?? [] }))
+    setOpenId(id)
+  }
+
+  async function updateStatus(id: string, status: string, extra: Record<string, unknown> = {}) {
     const res = await fetch(`/api/school/${schoolId}/meldingen/${id}`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ status }),
+      body:    JSON.stringify({ status, ...extra }),
     })
     if (res.ok) {
       const d = await res.json()
-      setMeldingen(prev => prev.map(m => m.issue.id === id ? { ...m, issue: d.melding } : m))
+      setMeldingen(prev => prev.map(m => m.issue.id === id
+        ? { ...m, issue: d.melding, toegewezenNaam: extra.assignedTo
+            ? (kandidaten.find(k => k.id === extra.assignedTo)?.naam ?? m.toegewezenNaam)
+            : m.toegewezenNaam }
+        : m))
       toast('Status bijgewerkt')
     } else {
       toast('Bijwerken mislukt', 'error')
@@ -1955,6 +2012,7 @@ function MeldingenTab({ schoolId, toast }: { schoolId: string; toast: (msg: stri
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
+          {magMelden && (
           <button
             onClick={() => setShowNieuw(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl gradient-primary font-label text-xs font-semibold text-on-primary shadow-glow"
@@ -1962,6 +2020,7 @@ function MeldingenTab({ schoolId, toast }: { schoolId: string; toast: (msg: stri
             <span className="material-symbols-outlined text-sm" aria-hidden="true">add</span>
             Melding
           </button>
+          )}
         </div>
       </div>
 
@@ -1976,7 +2035,7 @@ function MeldingenTab({ schoolId, toast }: { schoolId: string; toast: (msg: stri
         </div>
       ) : (
         <div className="space-y-2">
-          {zichtbaar.map(({ issue, boot, melder }) => {
+          {zichtbaar.map(({ issue, boot, melder, toegewezenNaam }) => {
             const si = STATUS_FLOW.find(s => s.value === issue.status) ?? STATUS_FLOW[0]
             const isOpen = openId === issue.id
             return (
@@ -2072,6 +2131,57 @@ function MeldingenTab({ schoolId, toast }: { schoolId: string; toast: (msg: stri
                         Ingediend via verhuurrapport · {new Date(issue.createdAt).toLocaleDateString('nl-NL')}
                       </p>
                     )}
+
+                    {/* Toewijzing */}
+                    <div>
+                      <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider mb-2">Toegewezen aan</p>
+                      {magToewijzen ? (
+                        <select
+                          value={issue.assignedTo ?? ''}
+                          onChange={e => updateStatus(issue.id, issue.status, { assignedTo: e.target.value || null })}
+                          className="px-3 py-2 rounded-xl bg-surface-container-high border border-white/10 text-on-surface font-label text-xs focus:outline-none"
+                        >
+                          <option value="">— onbekend —</option>
+                          {kandidaten.map(k => (
+                            <option key={k.id} value={k.id}>{k.naam} ({k.role})</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="font-body text-sm text-on-surface-variant">
+                          {toegewezenNaam ? toegewezenNaam : 'Nog niet toegewezen'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Historie */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => laadHistorie(issue.id)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-high font-label text-xs text-on-surface-variant hover:text-on-surface transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-sm" aria-hidden="true">history</span>
+                        Historie tonen
+                      </button>
+                      {(historie[issue.id] ?? []).length > 0 && (
+                        <ul className="mt-2 space-y-1.5">
+                          {(historie[issue.id] ?? []).map((h: any) => (
+                            <li key={h.hist.id} className="flex items-start gap-2 text-[12px] text-on-surface-variant">
+                              <span className="material-symbols-outlined text-[15px] text-primary/60 mt-0.5" aria-hidden="true">history</span>
+                              <span>
+                                <strong className="text-on-surface font-semibold">{h.actor?.name ?? '?'}</strong>{' '}
+                                {h.hist.actie === 'aangemaakt' && 'melde aan'}
+                                {h.hist.actie === 'status' && `zette status: ${h.hist.vanWaarde} → ${h.hist.naarWaarde}`}
+                                {h.hist.actie === 'toegewezen' && `wees toe aan: ${h.hist.naarWaarde ?? 'niemand'}`}
+                                {h.hist.actie === 'notitie' && 'voegde notitie toe'}
+                                {' · '}
+                                {new Date(h.hist.createdAt).toLocaleString('nl-NL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2207,6 +2317,211 @@ function parseInsteData(raw: unknown): InsteData {
     tarieven:   Array.isArray(r.tarieven)   ? r.tarieven   as InsteTarief[]  : [],
     opmerkingen: Array.isArray(r.opmerkingen) ? r.opmerkingen as string[]   : [],
   }
+}
+
+// ─── KLUSSEN TAB (Fase 2) ───────────────────────────────────────────────
+// Klussenlijst voor klusser + staff. Toont dezelfde meldingen als de
+// Meldingen-tab, maar met toewijzing (wie pakt het op) en een
+// historie-trail per klus. Leden/huurders melden via hun eigen routes.
+type KlusKandidaat = { id: string; naam: string; role: string }
+
+function KlussenTab({
+  schoolId, toast, myUserId, isKlusser,
+}: {
+  schoolId: string
+  toast: (msg: string, type?: 'success' | 'error') => void
+  myUserId: string
+  isKlusser: boolean
+}) {
+  const [meldingen, setMeldingen]     = useState<any[]>([])
+  const [kandidaten, setKandidaten]   = useState<KlusKandidaat[]>([])
+  const [magToewijzen, setMagToewijzen] = useState(false)
+  const [loading, setLoading]         = useState(true)
+  const [openId, setOpenId]           = useState<string | null>(null)
+  const [historie, setHistorie]       = useState<Record<string, any[]>>({})
+
+  async function load() {
+    const res = await fetch(`/api/school/${schoolId}/meldingen`)
+    const d = await res.json()
+    setMeldingen(d.meldingen ?? [])
+    setKandidaten(d.klusKandidaten ?? [])
+    setMagToewijzen(!!d.magToewijzen)
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [schoolId])
+
+  async function patch(id: string, body: any) {
+    const res = await fetch(`/api/school/${schoolId}/meldingen/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      setMeldingen(prev => prev.map(m => m.issue.id === id
+        ? { ...m, issue: d.melding, toegewezenNaam: body.assignedTo
+            ? (kandidaten.find(k => k.id === body.assignedTo)?.naam ?? m.toegewezenNaam)
+            : null }
+        : m))
+      toast('Bijgewerkt')
+    } else {
+      toast('Mislukt', 'error')
+    }
+  }
+
+  async function laadHistorie(id: string) {
+    if (historie[id]) { setOpenId(id); return }
+    const res = await fetch(`/api/school/${schoolId}/meldingen/${id}/historie`)
+    const d = await res.json()
+    setHistorie(prev => ({ ...prev, [id]: d.historie ?? [] }))
+    setOpenId(id)
+  }
+
+  const actief = ['gemeld', 'in_behandeling', 'besteld']
+  const open = meldingen.filter(m => actief.includes(m.issue.status))
+  const mijToegewezen = isKlusser
+    ? open.filter(m => m.issue.assignedTo === myUserId)
+    : open
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="font-headline font-bold text-lg text-on-surface">Klussen</h2>
+          {open.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-red-400/15 text-red-300 font-label text-xs font-semibold">
+              {open.length} open
+            </span>
+          )}
+          {isKlusser && mijToegewezen.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary font-label text-xs font-semibold">
+              {mijToegewezen.length} voor mij
+            </span>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-20 bg-surface-container rounded-2xl animate-pulse" />)}</div>
+      ) : mijToegewezen.length === 0 ? (
+        <div className="bg-surface-container rounded-2xl p-8 border border-white/5 text-center">
+          <span className="material-symbols-outlined text-4xl text-on-surface-variant/30" aria-hidden="true">check_circle</span>
+          <p className="font-body text-sm text-on-surface-variant mt-2">
+            {isKlusser ? 'Geen klussen voor jou toegewezen.' : 'Geen open klussen.'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {mijToegewezen.map(({ issue, boot, melder, toegewezenNaam }) => {
+            const si = STATUS_FLOW.find(s => s.value === issue.status) ?? STATUS_FLOW[0]
+            const isOpen = openId === issue.id
+            return (
+              <div key={issue.id} className="bg-surface-container rounded-2xl border border-white/5 overflow-hidden">
+                <div
+                  className="flex items-start gap-3 p-4 cursor-pointer hover:bg-surface-container-high transition-colors"
+                  onClick={() => laadHistorie(issue.id)}
+                >
+                  <div className={`flex-shrink-0 mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center ${si.cls}`}>
+                    <span className="material-symbols-outlined text-base" aria-hidden="true"
+                          style={{ fontVariationSettings: "'FILL' 1" }}>{si.icon}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-label text-sm font-semibold text-on-surface truncate">{issue.titel}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {boot && (
+                        <span className="font-label text-[11px] text-on-surface-variant">
+                          Boot {boot.bootNummer}{boot.naam ? ` — ${boot.naam}` : ''}
+                        </span>
+                      )}
+                      {issue.prioriteit && issue.prioriteit !== 'normaal' && (
+                        <span className={`px-2 py-0.5 rounded-lg font-label text-[10px] font-semibold uppercase ${PRIO_CLS[issue.prioriteit] ?? ''}`}>
+                          {issue.prioriteit}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className={`px-2 py-0.5 rounded-lg font-label text-[11px] font-semibold ${si.cls}`}>{si.label}</span>
+                  </div>
+                </div>
+
+                {isOpen && (
+                  <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-4">
+                    {issue.beschrijving && (
+                      <p className="font-body text-sm text-on-surface-variant">{issue.beschrijving}</p>
+                    )}
+
+                    {/* Toewijzing */}
+                    <div>
+                      <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider mb-2">Toegewezen aan</p>
+                      {magToewijzen ? (
+                        <select
+                          value={issue.assignedTo ?? ''}
+                          onChange={e => patch(issue.id, { assignedTo: e.target.value || null })}
+                          className="px-3 py-2 rounded-xl bg-surface-container-high border border-white/10 text-on-surface font-label text-xs focus:outline-none"
+                        >
+                          <option value="">— onbekend —</option>
+                          {kandidaten.map(k => (
+                            <option key={k.id} value={k.id}>{k.naam} ({k.role})</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="font-body text-sm text-on-surface-variant">
+                          {toegewezenNaam ? `${toegewezenNaam}` : 'Nog niet toegewezen'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider mb-2">Status</p>
+                      <div className="flex flex-wrap gap-2">
+                        {STATUS_FLOW.map(s => (
+                          <button
+                            key={s.value}
+                            onClick={() => patch(issue.id, { status: s.value })}
+                            disabled={issue.status === s.value}
+                            className={[
+                              'flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-label text-xs font-semibold transition-all',
+                              issue.status === s.value
+                                ? s.cls + ' opacity-100 ring-1 ring-current'
+                                : 'bg-surface-container-high text-on-surface-variant hover:text-on-surface',
+                            ].join(' ')}
+                          >
+                            <span className="material-symbols-outlined text-sm" aria-hidden="true">{s.icon}</span>
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Historie */}
+                    <div>
+                      <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider mb-2">Historie</p>
+                      <ul className="space-y-1.5">
+                        {(historie[issue.id] ?? []).map((h: any) => (
+                          <li key={h.hist.id} className="flex items-start gap-2 text-[12px] text-on-surface-variant">
+                            <span className="material-symbols-outlined text-[15px] text-primary/60 mt-0.5" aria-hidden="true">history</span>
+                            <span>
+                              <strong className="text-on-surface font-semibold">{h.actor?.name ?? '?'}</strong>{' '}
+                              {h.hist.actie === 'aangemaakt' && 'melde aan'}
+                              {h.hist.actie === 'status' && `zette status: ${h.hist.vanWaarde} → ${h.hist.naarWaarde}`}
+                              {h.hist.actie === 'toegewezen' && `wees toe aan: ${h.hist.naarWaarde ?? 'niemand'}`}
+                              {h.hist.actie === 'notitie' && 'voegde notitie toe'}
+                              {' · '}
+                              {new Date(h.hist.createdAt).toLocaleString('nl-NL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function InstellingenTab({

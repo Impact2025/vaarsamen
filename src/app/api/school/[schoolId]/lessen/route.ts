@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { schoolLessons, lessonStudents, schoolCourses } from '@/lib/db/schema'
+import { schoolLessons, lessonStudents, schoolCourses , isStaff } from '@/lib/db/schema'
 import { schoolLesSchema } from '@/lib/validations'
 import { getSchoolMembership, getLessenVoorCursus } from '@/lib/db/queries/school'
 import { and, eq, isNull } from 'drizzle-orm'
@@ -36,7 +36,7 @@ export async function POST(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 

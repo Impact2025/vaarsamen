@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { boatAvailability, schoolFleet } from '@/lib/db/schema'
+import { boatAvailability, schoolFleet , isStaff } from '@/lib/db/schema'
 import { getSchoolMembership } from '@/lib/db/queries/school'
 import { and, eq, gte, lte, or } from 'drizzle-orm'
 import { z } from 'zod'
@@ -49,7 +49,7 @@ export async function POST(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
@@ -86,7 +86,7 @@ export async function DELETE(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 

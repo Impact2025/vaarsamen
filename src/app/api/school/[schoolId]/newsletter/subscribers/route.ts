@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { newsletterSubscribers, schoolMemberships, users } from '@/lib/db/schema'
+import { newsletterSubscribers, schoolMemberships, users , isStaff } from '@/lib/db/schema'
 import { getSchoolMembership, getSchoolById, getSubscribers } from '@/lib/db/queries/school'
 import { subscriberSchema } from '@/lib/validations'
 import { sendEmailAsync } from '@/lib/email'
@@ -18,7 +18,7 @@ export async function GET(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
@@ -36,7 +36,7 @@ export async function POST(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
@@ -120,7 +120,7 @@ export async function DELETE(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 

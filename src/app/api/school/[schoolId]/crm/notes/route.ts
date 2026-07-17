@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { crmNotes, schoolMemberships } from '@/lib/db/schema'
+import { crmNotes, schoolMemberships , isStaff } from '@/lib/db/schema'
 import { getSchoolMembership, getCrmNotes } from '@/lib/db/queries/school'
 import { crmNoteSchema } from '@/lib/validations'
 import { eq, and, isNull } from 'drizzle-orm'
@@ -15,7 +15,7 @@ export async function GET(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
@@ -57,7 +57,7 @@ export async function POST(
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || membership.role === 'cursist') {
+  if (!membership || !isStaff(membership.role)) {
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 

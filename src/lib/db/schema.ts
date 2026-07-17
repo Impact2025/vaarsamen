@@ -11,7 +11,8 @@ export const cwoLevelEnum = pgEnum('cwo_level', [
 ])
 
 export const boatTypeEnum = pgEnum('boat_type', [
-  'valk', 'polyvalk', 'laser', 'laser_pico', 'rs_feva', 'kajuitjacht', 'catamaran', 'anders'
+  'valk', 'polyvalk', 'laser', 'laser_pico', 'rs_feva', 'kajuitjacht', 'catamaran', 'anders',
+  'kielboot', 'sloep', 'kano'
 ])
 
 export const sailingRoleEnum = pgEnum('sailing_role', [
@@ -347,13 +348,29 @@ export const skillScoreEnum = pgEnum('skill_score', [
 ])
 
 export const schoolRoleEnum = pgEnum('school_role', [
-  'eigenaar', 'instructeur', 'cursist'
+  'eigenaar', 'instructeur', 'cursist', 'lid', 'klusser'
 ])
 
 // Lifecycle-status van een lid in de klantrelatie (CRM)
 export const lifecycleStatusEnum = pgEnum('lifecycle_status', [
   'lead', 'actief', 'inactief', 'oud_cursist', 'opgezegd'
 ])
+
+// Toegangsstatus van een lid: los van lifecycleStatus (CRM-relatie) bepaalt dit
+// wat iemand mág. Alleen 'goedgekeurd' geeft recht op boot huren.
+export const membershipStatusEnum = pgEnum('membership_status', [
+  'onboarding', 'wacht_op_goedkeuring', 'goedgekeurd', 'afgewezen'
+])
+
+export type SchoolRole       = (typeof schoolRoleEnum.enumValues)[number]
+export type MembershipStatus = (typeof membershipStatusEnum.enumValues)[number]
+
+// Staff = mag de school beheren. Klusser is bewust géén staff: die ziet de
+// klussenlijst, niet de ledenadministratie.
+export const STAFF_ROLES = ['eigenaar', 'instructeur'] as const
+export function isStaff(role: SchoolRole): boolean {
+  return (STAFF_ROLES as readonly string[]).includes(role)
+}
 
 // ─── ZEILSCHOLEN ─────────────────────────────────────────────────────────────
 
@@ -390,10 +407,22 @@ export const schoolMemberships = pgTable('school_memberships', {
   geboortedatum:  date('geboortedatum'),                         // voor attenties/verjaardag
   laatstContact:  timestamp('laatst_contact'),                   // wanneer we dit lid voor het laatst spraken
   nieuwsbrief:    boolean('nieuwsbrief').default(true),         // ontvangt de school-nieuwsbrief?
+  // ─── TOEGANG / ONBOARDING ────────────────────────────────────────────────
+  // Default 'goedgekeurd': bestaande leden van voor deze kolom houden hun
+  // toegang. Nieuwe leden via uitnodiging starten expliciet op 'onboarding'.
+  status:         membershipStatusEnum('status').notNull().default('goedgekeurd'),
+  onboardingAt:   timestamp('onboarding_at'),                    // onboarding-formulier ingediend
+  approvedAt:     timestamp('approved_at'),
+  approvedBy:     uuid('approved_by').references(() => users.id),
+  afwijzingReden: text('afwijzing_reden'),
+  telefoon:       varchar('telefoon', { length: 30 }),
+  ervaring:       text('ervaring'),                              // vrije tekst uit onboarding
+  noodContact:    varchar('nood_contact', { length: 200 }),      // naam + nummer
   deletedAt: timestamp('deleted_at'),
 }, (t) => ({
   uniq:           uniqueIndex('school_memberships_school_user_uniq').on(t.schoolId, t.userId),
   schoolDeletedIdx: index('school_memberships_school_deleted_idx').on(t.schoolId, t.deletedAt),
+  schoolStatusIdx:  index('school_memberships_school_status_idx').on(t.schoolId, t.status),
 }))
 
 // ─── UITNODIGINGEN ───────────────────────────────────────────────────────────
@@ -409,11 +438,18 @@ export const schoolInvites = pgTable('school_invites', {
   maxUses:   integer('max_uses'),        // null = onbeperkt
   usedCount: integer('used_count').default(0).notNull(),
   expiresAt: timestamp('expires_at'),    // null = nooit
+  // Persoonlijke uitnodiging: gebonden aan één e-mailadres en per mail verstuurd.
+  // null = gedeelde link zoals voorheen, door iedereen te gebruiken.
+  email:      varchar('email', { length: 255 }),
+  naam:       varchar('naam',  { length: 200 }),
+  acceptedAt: timestamp('accepted_at'),
   createdBy: uuid('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').defaultNow(),
   deletedAt: timestamp('deleted_at'),
 }, (t) => ({
   tokenUniq: uniqueIndex('school_invites_token_uniq').on(t.token),
+  // Eén openstaande persoonlijke uitnodiging per e-mailadres per school
+  schoolEmailIdx: index('school_invites_school_email_idx').on(t.schoolId, t.email),
 }))
 
 // ─── CURSUSSEN ───────────────────────────────────────────────────────────────
@@ -441,6 +477,10 @@ export const schoolFleet = pgTable('school_fleet', {
   bootType:   boatTypeEnum('boot_type'),
   naam:       text('naam'),
   capacity:   integer('capacity').default(1),               // max pax
+  // ─── UITRUSTING (De Boet vloot) ──────────────────────────────────────────
+  // Vrij veld voor rolfok, buitenboordmotor (Yamaha), etc.
+  uitrusting:  text('uitrusting'),
+  opmerkingen: text('opmerkingen'),
   deletedAt:  timestamp('deleted_at'),
   createdAt:  timestamp('created_at').defaultNow(),
 })
@@ -674,6 +714,7 @@ export const boatIssues = pgTable('boat_issues', {
   bootId:       uuid('boot_id').notNull().references(() => schoolFleet.id),
   rentalId:     uuid('rental_id').references(() => boatRentals.id),
   reportedBy:   uuid('reported_by').references(() => users.id),
+  assignedTo:   uuid('assigned_to').references(() => users.id), // Fase 2: wie pakt de klus op
   titel:        varchar('titel',       { length: 200 }).notNull(),
   beschrijving: text('beschrijving'),
   // gemeld → in_behandeling → besteld → gerepareerd | gesloten
@@ -688,6 +729,28 @@ export const boatIssues = pgTable('boat_issues', {
 }, (t) => ({
   schoolIdx: index('boat_issues_school_id_idx').on(t.schoolId),
   bootIdx:   index('boat_issues_boot_id_idx').on(t.bootId),
+  assignedIdx: index('boat_issues_assigned_idx').on(t.assignedTo),
+}))
+
+// ─── BOOT MELDING HISTORIE ─────────────────────────────────────────────────
+// Fase 2: onveranderlijke audit-trail per melding (wie zette welke status/
+// toewijzing op welk tijdstip). Voorkomt verloren gangen en geeft de
+// klusser/owner inzicht in de voortgang.
+export const issueHistoryActionEnum = pgEnum('issue_history_action', [
+  'aangemaakt', 'status', 'toegewezen', 'notitie', 'afgehandeld',
+])
+
+export const boatIssueHistory = pgTable('boat_issue_history', {
+  id:         uuid('id').defaultRandom().primaryKey(),
+  issueId:    uuid('issue_id').notNull().references(() => boatIssues.id, { onDelete: 'cascade' }),
+  actorId:    uuid('actor_id').references(() => users.id), // wie voerde de actie uit
+  actie:      issueHistoryActionEnum('actie').notNull(),
+  vanWaarde:  text('van_waarde'),   // bv. oude status
+  naarWaarde: text('naar_waarde'), // bv. nieuwe status / toegewezen naam
+  notitie:    text('notitie'),
+  createdAt:  timestamp('created_at').defaultNow(),
+}, (t) => ({
+  issueIdx: index('boat_issue_history_issue_idx').on(t.issueId),
 }))
 
 // ─── SCHOOL RESOURCES ───────────────────────────────────────────────────────
