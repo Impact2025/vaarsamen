@@ -60,7 +60,7 @@ interface Props {
   myRole:    'eigenaar' | 'instructeur' | 'cursist'
 }
 
-type Tab = 'lessen' | 'cursisten' | 'berichten' | 'vloot' | 'leden' | 'verhuur' | 'meldingen' | 'instellingen'
+type Tab = 'lessen' | 'cursisten' | 'berichten' | 'vloot' | 'leden' | 'nieuwsbrief' | 'verhuur' | 'meldingen' | 'instellingen'
 type CourseRow = SchoolDashboardData['courses'][number]
 
 export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }: Props) {
@@ -77,8 +77,25 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
 
   useEffect(() => setMounted(true), [])
 
+  const navItems: { id: Tab; label: string; icon: string }[] = isEigenaar
+    ? [
+        { id: 'lessen',       label: 'Lessen',       icon: 'calendar_today' },
+        { id: 'leden',        label: 'Team',         icon: 'group'          },
+        { id: 'berichten',    label: 'Berichten',    icon: 'forum'          },
+        { id: 'nieuwsbrief',  label: 'Nieuwsbrief',  icon: 'campaign'       },
+        { id: 'vloot',        label: 'Vloot',        icon: 'sailing'        },
+        { id: 'verhuur',      label: 'Verhuur',      icon: 'key'            },
+        { id: 'meldingen',    label: 'Meldingen',    icon: 'report'         },
+        { id: 'instellingen', label: 'Instellingen', icon: 'settings'       },
+      ]
+    : [
+        { id: 'lessen',    label: 'Lessen',    icon: 'calendar_today' },
+        { id: 'cursisten', label: 'Cursisten', icon: 'school'         },
+        { id: 'berichten', label: 'Berichten', icon: 'forum'          },
+      ]
+
   return (
-    <div className="space-y-6">
+    <div>
       <ToastContainer toasts={toasts} />
 
       {/* Welkomstour — eenmalig bij eerste bezoek */}
@@ -94,8 +111,12 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
         </AnimatePresence>
       )}
 
+      {/* Desktop: nav-rail links, content rechts. Eén nav-element (via expliciete
+          grid-plaatsing) zodat de onboarding-tour blijft werken. Mobiel: alles onder elkaar. */}
+      <div className="space-y-6 lg:space-y-0 lg:grid lg:gap-x-8 lg:gap-y-6 lg:items-start lg:grid-cols-[15rem_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr]">
+
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 lg:col-start-2 lg:row-start-1">
         <div>
           <h1 className="font-headline font-black text-2xl text-on-surface">{school.name}</h1>
           {school.city && (
@@ -109,7 +130,7 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
 
       {/* Stats — instructeur ziet 3 relevante cijfers, eigenaar alle 4 */}
       {isEigenaar ? (
-        <div data-tour="stats" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div data-tour="stats" className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:col-start-2 lg:row-start-2">
           {[
             { label: 'Cursisten',    value: stats.totaalCursisten,    icon: 'school'         },
             { label: 'Instructeurs', value: stats.totaalInstructeurs, icon: 'person_check'   },
@@ -124,7 +145,7 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
           ))}
         </div>
       ) : (
-        <div data-tour="stats" className="grid grid-cols-3 gap-3">
+        <div data-tour="stats" className="grid grid-cols-3 gap-3 lg:col-start-2 lg:row-start-2">
           {[
             { label: 'Cursisten',  value: stats.totaalCursisten,  icon: 'school'         },
             { label: 'Lessen',     value: stats.totaalLessen,     icon: 'calendar_today' },
@@ -139,21 +160,14 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
         </div>
       )}
 
-      {/* Tabs */}
-      <div data-tour="tabs" className="flex gap-1 bg-surface-container rounded-2xl p-1 border border-white/5" role="tablist">
-        {(isEigenaar ? ([
-          { id: 'lessen',       label: 'Lessen',       icon: 'calendar_today' },
-          { id: 'leden',        label: 'Team',         icon: 'group'          },
-          { id: 'berichten',    label: 'Berichten',    icon: 'forum'          },
-          { id: 'vloot',        label: 'Vloot',        icon: 'sailing'        },
-          { id: 'verhuur',      label: 'Verhuur',      icon: 'key'            },
-          { id: 'meldingen',    label: 'Meldingen',    icon: 'report'         },
-          { id: 'instellingen', label: 'Instellingen', icon: 'settings'       },
-        ] as { id: Tab; label: string; icon: string }[]) : ([
-          { id: 'lessen',    label: 'Lessen',    icon: 'calendar_today' },
-          { id: 'cursisten', label: 'Cursisten', icon: 'school'         },
-          { id: 'berichten', label: 'Berichten', icon: 'forum'          },
-        ] as { id: Tab; label: string; icon: string }[])).map(tab => (
+      {/* Navigatie — mobiel horizontale pill-bar, desktop verticale sidebar links */}
+      <nav
+        data-tour="tabs"
+        role="tablist"
+        aria-label="Dashboard secties"
+        className="flex gap-1 bg-surface-container rounded-2xl p-1 border border-white/5 lg:col-start-1 lg:row-start-1 lg:row-span-3 lg:self-start lg:sticky lg:top-20 lg:flex-col lg:gap-0.5 lg:bg-transparent lg:border-0 lg:p-0"
+      >
+        {navItems.map(tab => (
           <button
             key={tab.id}
             role="tab"
@@ -161,18 +175,20 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
             onClick={() => setActiveTab(tab.id)}
             className={[
               'flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-label text-sm font-semibold transition-all',
+              'lg:flex-none lg:justify-start lg:gap-3',
               activeTab === tab.id
                 ? 'bg-primary/15 text-primary'
                 : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high',
             ].join(' ')}
           >
-            <span className="material-symbols-outlined text-base" aria-hidden="true">{tab.icon}</span>
+            <span className="material-symbols-outlined text-base lg:text-xl" aria-hidden="true">{tab.icon}</span>
             <span className="hidden sm:inline">{tab.label}</span>
           </button>
         ))}
-      </div>
+      </nav>
 
       {/* Tab content */}
+      <div className="space-y-6 lg:col-start-2 lg:row-start-3 lg:min-w-0">
       {activeTab === 'lessen' && (
         <LessenTab
           courses={courses}
@@ -196,6 +212,10 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
 
       {activeTab === 'leden' && isEigenaar && (
         <LedenTab schoolId={schoolId} myUserId={myUserId} toast={toast} />
+      )}
+
+      {activeTab === 'nieuwsbrief' && isEigenaar && (
+        <NieuwsbriefTab schoolId={schoolId} schoolName={school.name} toast={toast} />
       )}
 
       {activeTab === 'vloot' && isEigenaar && (
@@ -225,6 +245,9 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
           onClose={() => setEditCursus(null)}
         />
       )}
+      </div>{/* /tab content */}
+
+      </div>{/* /grid */}
     </div>
   )
 }
@@ -829,7 +852,14 @@ function BeschikbaarheidModal({ schoolId, boot, onClose, toast }: {
 
 // ─── LEDEN TAB ────────────────────────────────────────────────────────────────
 
-type Lid = { userId: string; naam: string | null; email: string; image: string | null; role: string; joinedAt: string | null }
+type Lid = {
+  userId: string; naam: string | null; email: string; image: string | null; role: string; joinedAt: string | null
+  lifecycleStatus: string
+  tags: string[] | null
+  geboortedatum: string | null
+  laatstContact: string | null
+  nieuwsbrief: boolean
+}
 type Invite = { id: string; token: string; role: string; label: string | null; usedCount: number; maxUses: number | null; expiresAt: string | null }
 
 function LedenTab({ schoolId, myUserId, toast }: { schoolId: string; myUserId: string; toast: (msg: string, type?: 'success' | 'error') => void }) {
@@ -850,7 +880,7 @@ function LedenTab({ schoolId, myUserId, toast }: { schoolId: string; myUserId: s
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch(`/api/school/${schoolId}/leden`)
+    fetch(`/api/school/${schoolId}/crm/leden`)
       .then(r => r.json())
       .then(d => { setLeden(d.leden ?? []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -931,49 +961,284 @@ function LedenTab({ schoolId, myUserId, toast }: { schoolId: string; myUserId: s
   const ROLE_LABELS: Record<string, string> = { eigenaar: 'Eigenaar', instructeur: 'Instructeur', cursist: 'Cursist' }
   const ROLE_ICON:   Record<string, string> = { eigenaar: 'star', instructeur: 'person_check', cursist: 'school' }
 
+  const LIFECYCLE_LABELS: Record<string, string> = {
+    lead: 'Lead', actief: 'Actief', inactief: 'Inactief', oud_cursist: 'Oud-cursist', opgezegd: 'Opgezegd',
+  }
+  const LIFECYCLE_CLS: Record<string, string> = {
+    lead:        'bg-blue-400/15 text-blue-300',
+    actief:      'bg-green-400/15 text-green-300',
+    inactief:    'bg-white/8 text-on-surface-variant',
+    oud_cursist: 'bg-amber-400/15 text-amber-300',
+    opgezegd:    'bg-red-400/15 text-red-300',
+  }
+
   function LidRow({ lid }: { lid: Lid }) {
+    const [open, setOpen] = useState(false)
     return (
-      <div className="flex items-center gap-3 py-3 border-b border-white/5 last:border-0">
-        <div className="w-9 h-9 rounded-full bg-surface-container-high flex-shrink-0 overflow-hidden flex items-center justify-center">
-          {lid.image
-            ? <img src={lid.image} alt="" className="w-full h-full object-cover" />
-            : <span className="material-symbols-outlined text-lg text-on-surface-variant" aria-hidden="true">person</span>
-          }
+      <div className="bg-surface-container rounded-2xl border border-white/5 overflow-hidden">
+        <div
+          className="flex items-center gap-3 p-4 cursor-pointer hover:bg-surface-container-high transition-colors"
+          onClick={() => setOpen(o => !o)}
+        >
+          <div className="w-9 h-9 rounded-full bg-surface-container-high flex-shrink-0 overflow-hidden flex items-center justify-center">
+            {lid.image
+              ? <img src={lid.image} alt="" className="w-full h-full object-cover" />
+              : <span className="material-symbols-outlined text-lg text-on-surface-variant" aria-hidden="true">person</span>
+            }
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-label text-sm font-semibold text-on-surface truncate">{lid.naam ?? lid.email}</p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <p className="font-label text-xs text-on-surface-variant truncate">{lid.email}</p>
+              <span className={['px-1.5 py-0.5 rounded-md font-label text-[10px] font-semibold', LIFECYCLE_CLS[lid.lifecycleStatus] ?? 'bg-white/8 text-on-surface-variant'].join(' ')}>
+                {LIFECYCLE_LABELS[lid.lifecycleStatus] ?? lid.lifecycleStatus}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className={[
+              'hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg font-label text-[11px] font-semibold',
+              lid.role === 'eigenaar'    ? 'bg-amber-400/15 text-amber-300'  :
+              lid.role === 'instructeur' ? 'bg-primary/15 text-primary'      :
+                                           'bg-white/8 text-on-surface-variant',
+            ].join(' ')}>
+              <span className="material-symbols-outlined text-[12px]" aria-hidden="true">{ROLE_ICON[lid.role] ?? 'person'}</span>
+              {ROLE_LABELS[lid.role] ?? lid.role}
+            </span>
+            {lid.role === 'cursist' && (
+              <a
+                href={`/school/${schoolId}/cursist/${lid.userId}/vorderingen`}
+                onClick={e => e.stopPropagation()}
+                aria-label={`Vorderingenstaat van ${lid.naam ?? lid.email}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                <span className="material-symbols-outlined text-base" aria-hidden="true">description</span>
+              </a>
+            )}
+            {lid.userId !== myUserId && lid.role !== 'eigenaar' && (
+              <button
+                onClick={e => { e.stopPropagation(); handleRemove(lid.userId) }}
+                aria-label={`${lid.naam ?? lid.email} verwijderen`}
+                className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-error hover:bg-error/10 transition-colors"
+              >
+                <span className="material-symbols-outlined text-base" aria-hidden="true">person_remove</span>
+              </button>
+            )}
+            <span className="material-symbols-outlined text-on-surface-variant text-base transition-transform duration-200"
+                  style={{ transform: open ? 'rotate(180deg)' : 'none' }} aria-hidden="true">expand_more</span>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-label text-sm font-semibold text-on-surface truncate">{lid.naam ?? lid.email}</p>
-          <p className="font-label text-xs text-on-surface-variant truncate">{lid.email}</p>
+
+        {open && (
+          <LidCrmDetail
+            schoolId={schoolId}
+            lid={lid}
+            onUpdate={patch => {
+              setLeden(prev => prev.map(l => l.userId === lid.userId ? { ...l, ...patch } : l))
+            }}
+            toast={toast}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // ─── CRM DETAIL PER LID ────────────────────────────────────────────────────
+  function LidCrmDetail({ schoolId, lid, onUpdate, toast }: {
+    schoolId: string
+    lid: Lid
+    onUpdate: (patch: Partial<Lid>) => void
+    toast: (msg: string, type?: 'success' | 'error') => void
+  }) {
+    const [lifecycle, setLifecycle]   = useState(lid.lifecycleStatus)
+    const [tags, setTags]             = useState<string[]>(lid.tags ?? [])
+    const [tagInput, setTagInput]     = useState('')
+    const [geboortedatum, setGeboorte] = useState(lid.geboortedatum ?? '')
+    const [notes, setNotes]           = useState<{ id: string; kanaal: string; inhoud: string; auteurNaam: string | null; createdAt: string | null }[]>([])
+    const [noteText, setNoteText]     = useState('')
+    const [noteKanaal, setNoteKanaal] = useState('notitie')
+    const [saving, setSaving]         = useState(false)
+    const [loadingNotes, setLoadingNotes] = useState(true)
+
+    // membershipId opzoeken voor notities — we halen deze uit de ledenlijst niet mee;
+    // gebruik de crm/notes endpoint met userId via een lookup. Voor nu: via lid.userId.
+    useEffect(() => {
+      fetch(`/api/school/${schoolId}/crm/notes?membershipId=lookup&userId=${lid.userId}`)
+        .then(r => r.ok ? r.json() : { notes: [] })
+        .then(d => { setNotes(d.notes ?? []); setLoadingNotes(false) })
+        .catch(() => setLoadingNotes(false))
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lid.userId])
+
+    async function saveCrm() {
+      setSaving(true)
+      const res = await fetch(`/api/school/${schoolId}/crm/lid`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: lid.userId,
+          lifecycleStatus: lifecycle,
+          tags,
+          geboortedatum: geboortedatum || null,
+        }),
+      })
+      setSaving(false)
+      if (res.ok) {
+        onUpdate({ lifecycleStatus: lifecycle, tags, geboortedatum: geboortedatum || null })
+        toast('CRM bijgewerkt')
+      } else {
+        toast('Opslaan mislukt', 'error')
+      }
+    }
+
+    async function addNote() {
+      if (!noteText.trim()) return
+      const res = await fetch(`/api/school/${schoolId}/crm/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: lid.userId, kanaal: noteKanaal, inhoud: noteText.trim() }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setNotes(prev => [{ id: d.note.id, kanaal: noteKanaal, inhoud: d.note.inhoud, auteurNaam: 'Jij', createdAt: d.note.createdAt }, ...prev])
+        setNoteText('')
+        toast('Notitie toegevoegd')
+      } else {
+        toast('Notitie mislukt', 'error')
+      }
+    }
+
+    function addTag() {
+      const t = tagInput.trim()
+      if (t && !tags.includes(t)) { setTags(prev => [...prev, t]); setTagInput('') }
+    }
+
+    const dirty = lifecycle !== lid.lifecycleStatus || JSON.stringify(tags) !== JSON.stringify(lid.tags ?? []) || geboortedatum !== (lid.geboortedatum ?? '')
+
+    return (
+      <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider">Status (lifecycle)</p>
+            <select
+              value={lifecycle}
+              onChange={e => setLifecycle(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60"
+            >
+              {Object.entries(LIFECYCLE_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider">Geboortedatum</p>
+            <input
+              type="date"
+              value={geboortedatum}
+              onChange={e => setGeboorte(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60"
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className={[
-            'flex items-center gap-1 px-2 py-1 rounded-lg font-label text-[11px] font-semibold',
-            lid.role === 'eigenaar'    ? 'bg-amber-400/15 text-amber-300'  :
-            lid.role === 'instructeur' ? 'bg-primary/15 text-primary'      :
-                                         'bg-white/8 text-on-surface-variant',
-          ].join(' ')}>
-            <span className="material-symbols-outlined text-[12px]" aria-hidden="true">{ROLE_ICON[lid.role] ?? 'person'}</span>
-            {ROLE_LABELS[lid.role] ?? lid.role}
-          </span>
-          {lid.role === 'cursist' && (
-            <a
-              href={`/school/${schoolId}/cursist/${lid.userId}/vorderingen`}
-              aria-label={`Vorderingenstaat van ${lid.naam ?? lid.email}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-primary/10 transition-colors"
-            >
-              <span className="material-symbols-outlined text-base" aria-hidden="true">description</span>
-            </a>
-          )}
-          {lid.userId !== myUserId && lid.role !== 'eigenaar' && (
-            <button
-              onClick={() => handleRemove(lid.userId)}
-              aria-label={`${lid.naam ?? lid.email} verwijderen`}
-              className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-error hover:bg-error/10 transition-colors"
-            >
-              <span className="material-symbols-outlined text-base" aria-hidden="true">person_remove</span>
+
+        <div className="space-y-2">
+          <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider">Tags / segmenten</p>
+          <div className="flex flex-wrap gap-2">
+            {tags.map(t => (
+              <span key={t} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/15 text-primary font-label text-xs font-semibold">
+                {t}
+                <button onClick={() => setTags(prev => prev.filter(x => x !== t))} aria-label={`Tag ${t} verwijderen`} className="hover:text-on-primary">
+                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">close</span>
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={tagInput}
+              onChange={e => setTagInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+              placeholder="bijv. wachtlijst_2026, zeeklaar, vip"
+              className="flex-1 px-3 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60"
+            />
+            <button onClick={addTag} className="px-3 py-2 rounded-xl bg-surface-container-high font-label text-xs text-on-surface-variant hover:text-on-surface transition-colors">
+              <span className="material-symbols-outlined text-base" aria-hidden="true">add</span>
             </button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <button
+            onClick={saveCrm}
+            disabled={!dirty || saving}
+            className="px-4 py-2 rounded-xl gradient-primary font-label text-xs font-semibold text-on-primary shadow-glow disabled:opacity-40"
+          >
+            {saving ? 'Opslaan…' : 'CRM opslaan'}
+          </button>
+          <span className="font-label text-[11px] text-on-surface-variant/60">
+            {lid.laatstContact ? `Laatst contact: ${new Date(lid.laatstContact).toLocaleDateString('nl-NL')}` : 'Nog geen contact'}
+          </span>
+        </div>
+
+        {/* Contactgeschiedenis */}
+        <div className="space-y-2">
+          <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider">Contactgeschiedenis</p>
+          {loadingNotes ? (
+            <div className="h-12 bg-surface-container-high rounded-xl animate-pulse" />
+          ) : notes.length === 0 ? (
+            <p className="font-body text-xs text-on-surface-variant/60">Nog geen contactnotities.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {notes.map(n => (
+                <div key={n.id} className="bg-surface-container-high rounded-xl p-3 border border-white/5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="material-symbols-outlined text-[14px] text-primary" aria-hidden="true">
+                      {n.kanaal === 'email' ? 'mail' : n.kanaal === 'telefoon' ? 'call' : n.kanaal === 'sms' ? 'sms' : n.kanaal === 'gesprek' ? 'record_voice_over' : 'note'}
+                    </span>
+                    <span className="font-label text-[11px] text-on-surface-variant uppercase tracking-wide">{n.kanaal}</span>
+                    {n.createdAt && (
+                      <span className="font-label text-[11px] text-on-surface-variant/50 ml-auto">
+                        {new Date(n.createdAt).toLocaleDateString('nl-NL')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-body text-sm text-on-surface">{n.inhoud}</p>
+                </div>
+              ))}
+            </div>
           )}
+
+          <div className="space-y-2 pt-1">
+            <div className="flex gap-2">
+              <select
+                value={noteKanaal}
+                onChange={e => setNoteKanaal(e.target.value)}
+                className="px-2 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-xs focus:outline-none focus:border-primary/60"
+              >
+                <option value="notitie">Notitie</option>
+                <option value="email">E-mail</option>
+                <option value="telefoon">Telefoon</option>
+                <option value="sms">SMS</option>
+                <option value="gesprek">Gesprek</option>
+              </select>
+              <input
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addNote() }}
+                placeholder="Notitie over dit lid…"
+                className="flex-1 px-3 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60"
+              />
+            </div>
+            <button
+              onClick={addNote}
+              disabled={!noteText.trim()}
+              className="w-full py-2 rounded-xl bg-surface-container-high font-label text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors disabled:opacity-40"
+            >
+              Notitie toevoegen
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -2561,6 +2826,286 @@ function BerichtenTab({ schoolId, myUserId }: { schoolId: string; myUserId: stri
             </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ─── NIEUWSBRIEF TAB ──────────────────────────────────────────────────────
+// Eigenaars-only. Toont abonneestats, abonneebeheer (double-opt-in) en
+// campagne-editor + verzenden.
+
+type Subscriber = {
+  id: string; email: string; naam: string | null
+  status: 'pending' | 'actief' | 'afgemeld' | 'gebounced'
+  aangemeldVia: string; createdAt: string | null; lidNaam: string | null
+}
+type Campaign = {
+  id: string; titel: string; subject: string; inhoud: string
+  status: 'concept' | 'verzonden' | 'gepland'
+  ontvangers: number; opens: number; kliks: number; verzondenAt: string | null
+}
+
+function NieuwsbriefTab({ schoolId, schoolName, toast }: {
+  schoolId: string; schoolName: string; toast: (msg: string, type?: 'success' | 'error') => void
+}) {
+  const [subs, setSubs]             = useState<Subscriber[]>([])
+  const [campaigns, setCampaigns]   = useState<Campaign[]>([])
+  const [stats, setStats]           = useState<{ actief: number; pending: number; afgemeld: number; totaal: number }>({ actief: 0, pending: 0, afgemeld: 0, totaal: 0 })
+  const [loading, setLoading]       = useState(true)
+
+  const [addEmail, setAddEmail]     = useState('')
+  const [addNaam, setAddNaam]       = useState('')
+  const [addSaving, setAddSaving]   = useState(false)
+
+  const [showEditor, setShowEditor] = useState(false)
+  const [editId, setEditId]         = useState<string | null>(null)
+  const [titel, setTitel]           = useState('')
+  const [subject, setSubject]       = useState('')
+  const [inhoud, setInhoud]         = useState('')
+  const [savingCamp, setSavingCamp] = useState(false)
+  const [sending, setSending]       = useState(false)
+
+  async function load() {
+    const [s, c, st] = await Promise.all([
+      fetch(`/api/school/${schoolId}/newsletter/subscribers`).then(r => r.json()),
+      fetch(`/api/school/${schoolId}/newsletter/campaigns`).then(r => r.json()),
+      fetch(`/api/school/${schoolId}/newsletter/stats`).then(r => r.json()),
+    ])
+    setSubs(s.subscribers ?? [])
+    setCampaigns(c.campaigns ?? [])
+    setStats(st.stats ?? { actief: 0, pending: 0, afgemeld: 0, totaal: 0 })
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [schoolId])
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault(); setAddSaving(true)
+    const res = await fetch(`/api/school/${schoolId}/newsletter/subscribers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: addEmail, naam: addNaam || undefined }),
+    })
+    setAddSaving(false)
+    if (res.ok) {
+      setAddEmail(''); setAddNaam('')
+      toast('Abonnee toegevoegd — bevestigingsmail verzonden')
+      load()
+    } else {
+      const d = await res.json().catch(() => ({}))
+      toast(typeof d.error === 'string' ? d.error : 'Toevoegen mislukt', 'error')
+    }
+  }
+
+  async function handleRemove(id: string) {
+    const res = await fetch(`/api/school/${schoolId}/newsletter/subscribers?id=${id}`, { method: 'DELETE' })
+    if (res.ok) { setSubs(prev => prev.filter(s => s.id !== id)); toast('Abonnee verwijderd') }
+    else toast('Verwijderen mislukt', 'error')
+  }
+
+  function openEditor(c?: Campaign) {
+    setEditId(c?.id ?? null)
+    setTitel(c?.titel ?? '')
+    setSubject(c?.subject ?? '')
+    setInhoud(c?.inhoud ?? '')
+    setShowEditor(true)
+  }
+
+  async function saveCampaign(e: React.FormEvent) {
+    e.preventDefault(); setSavingCamp(true)
+    const url = editId
+      ? `/api/school/${schoolId}/newsletter/campaigns`
+      : `/api/school/${schoolId}/newsletter/campaigns`
+    const method = editId ? 'PATCH' : 'POST'
+    const body = editId
+      ? { id: editId, titel, subject, inhoud }
+      : { titel, subject, inhoud }
+    const res = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    setSavingCamp(false)
+    if (res.ok) { setShowEditor(false); toast(editId ? 'Campagne bijgewerkt' : 'Concept opgeslagen'); load() }
+    else toast('Opslaan mislukt', 'error')
+  }
+
+  async function sendCampaign(id: string) {
+    if (!confirm('Nieuwsbrief verzenden naar alle actieve abonnees?')) return
+    setSending(true)
+    const res = await fetch(`/api/school/${schoolId}/newsletter/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaignId: id }),
+    })
+    setSending(false)
+    const d = await res.json().catch(() => ({}))
+    if (res.ok) toast(`Verzonden naar ${d.verzonden} van ${d.totaal} abonnees`)
+    else toast(typeof d.error === 'string' ? d.error : 'Verzenden mislukt', 'error')
+    load()
+  }
+
+  const STATUS_CLS: Record<string, string> = {
+    actief: 'bg-green-400/15 text-green-300',
+    pending: 'bg-amber-400/15 text-amber-300',
+    afgemeld: 'bg-white/8 text-on-surface-variant',
+    gebounced: 'bg-red-400/15 text-red-300',
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-headline font-bold text-lg text-on-surface">Nieuwsbrief</h2>
+        <button
+          onClick={() => openEditor()}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl gradient-primary font-label text-sm font-semibold text-on-primary shadow-glow"
+        >
+          <span className="material-symbols-outlined text-base" aria-hidden="true">edit_note</span>
+          Nieuwe campagne
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Actief', value: stats.actief, icon: 'check_circle' },
+          { label: 'Wacht bevestiging', value: stats.pending, icon: 'schedule' },
+          { label: 'Uitgeschreven', value: stats.afgemeld, icon: 'person_remove' },
+          { label: 'Totaal', value: stats.totaal, icon: 'group' },
+        ].map(s => (
+          <div key={s.label} className="bg-surface-container rounded-2xl p-4 border border-white/5">
+            <span className="material-symbols-outlined text-2xl text-primary" aria-hidden="true">{s.icon}</span>
+            <p className="font-headline font-black text-3xl text-on-surface mt-1">{s.value}</p>
+            <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Abonnees toevoegen */}
+      <form onSubmit={handleAdd} className="bg-surface-container rounded-2xl border border-white/5 p-4 space-y-3">
+        <p className="font-label text-sm font-semibold text-on-surface">Abonnee toevoegen (double-opt-in)</p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="email" required value={addEmail} onChange={e => setAddEmail(e.target.value)}
+            placeholder="naam@voorbeeld.nl"
+            className="flex-1 px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60"
+          />
+          <input
+            value={addNaam} onChange={e => setAddNaam(e.target.value)}
+            placeholder="Naam (optioneel)"
+            className="px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60"
+          />
+          <button type="submit" disabled={addSaving}
+            className="px-4 py-2.5 rounded-xl gradient-primary font-label text-sm font-semibold text-on-primary shadow-glow disabled:opacity-50">
+            {addSaving ? 'Toevoegen…' : 'Uitnodigen'}
+          </button>
+        </div>
+        <p className="font-label text-[11px] text-on-surface-variant/60">
+          Er gaat automatisch een bevestigingsmail uit. Pas na bevestiging ontvangt dit adres nieuwsbrieven.
+        </p>
+      </form>
+
+      {/* Abonneelijst */}
+      <div className="bg-surface-container rounded-2xl border border-white/5 overflow-hidden">
+        <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider p-4 border-b border-white/5">
+          Abonnees ({subs.length})
+        </p>
+        {loading ? (
+          <div className="p-4 space-y-2">{[1,2,3].map(i => <div key={i} className="h-10 bg-surface-container-high rounded-xl animate-pulse" />)}</div>
+        ) : subs.length === 0 ? (
+          <p className="font-body text-sm text-on-surface-variant p-4">Nog geen abonnees.</p>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {subs.map(s => (
+              <div key={s.id} className="flex items-center gap-3 p-3 hover:bg-surface-container-high transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="font-label text-sm font-semibold text-on-surface truncate">{s.naam ?? s.email}</p>
+                  <p className="font-label text-xs text-on-surface-variant truncate">{s.email}{s.lidNaam ? ` · lid: ${s.lidNaam}` : ''}</p>
+                </div>
+                <span className={['px-2 py-1 rounded-lg font-label text-[11px] font-semibold', STATUS_CLS[s.status] ?? 'bg-white/8 text-on-surface-variant'].join(' ')}>
+                  {s.status}
+                </span>
+                <button onClick={() => handleRemove(s.id)} aria-label="Abonnee verwijderen"
+                  className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-error hover:bg-error/10 transition-colors">
+                  <span className="material-symbols-outlined text-base" aria-hidden="true">person_remove</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Campagnes */}
+      <div className="bg-surface-container rounded-2xl border border-white/5 overflow-hidden">
+        <p className="font-label text-xs text-on-surface-variant uppercase tracking-wider p-4 border-b border-white/5">
+          Campagnes ({campaigns.length})
+        </p>
+        {campaigns.length === 0 ? (
+          <p className="font-body text-sm text-on-surface-variant p-4">Nog geen campagnes. Maak er een aan om je leden te bereiken.</p>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {campaigns.map(c => (
+              <div key={c.id} className="flex items-center gap-3 p-3 hover:bg-surface-container-high transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="font-label text-sm font-semibold text-on-surface truncate">{c.titel}</p>
+                  <p className="font-label text-xs text-on-surface-variant truncate">{c.subject}</p>
+                  {c.status === 'verzonden' && (
+                    <p className="font-label text-[11px] text-on-surface-variant/60 mt-0.5">
+                      {c.ontvangers} verzonden · {c.opens} geopend · {c.kliks} klik
+                      {c.verzondenAt ? ` · ${new Date(c.verzondenAt).toLocaleDateString('nl-NL')}` : ''}
+                    </p>
+                  )}
+                </div>
+                <span className={['px-2 py-1 rounded-lg font-label text-[11px] font-semibold',
+                  c.status === 'verzonden' ? 'bg-green-400/15 text-green-300' :
+                  c.status === 'concept' ? 'bg-white/8 text-on-surface-variant' : 'bg-blue-400/15 text-blue-300'].join(' ')}>
+                  {c.status}
+                </span>
+                <button onClick={() => openEditor(c)} aria-label="Bewerken"
+                  className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-primary/10 transition-colors">
+                  <span className="material-symbols-outlined text-base" aria-hidden="true">edit</span>
+                </button>
+                {c.status !== 'verzonden' && (
+                  <button onClick={() => sendCampaign(c.id)} disabled={sending} aria-label="Verzenden"
+                    className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40">
+                    <span className="material-symbols-outlined text-base" aria-hidden="true">send</span>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Editor modal */}
+      {showEditor && (
+        <form onSubmit={saveCampaign} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowEditor(false)}>
+          <div className="w-full max-w-2xl bg-surface-container rounded-2xl border border-white/10 p-5 space-y-3 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-headline font-bold text-lg text-on-surface">{editId ? 'Campagne bewerken' : 'Nieuwe campagne'}</h3>
+              <button type="button" onClick={() => setShowEditor(false)} aria-label="Sluiten"
+                className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-on-surface hover:bg-white/5">
+                <span className="material-symbols-outlined" aria-hidden="true">close</span>
+              </button>
+            </div>
+            <input value={titel} onChange={e => setTitel(e.target.value)} required placeholder="Titel (intern)"
+              className="w-full px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60" />
+            <input value={subject} onChange={e => setSubject(e.target.value)} required placeholder="Onderwerp van de e-mail"
+              className="w-full px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60" />
+            <textarea value={inhoud} onChange={e => setInhoud(e.target.value)} required rows={10}
+              placeholder="Schrijf hier je nieuwsbrief (HTML is toegestaan)…"
+              className="w-full px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60 resize-none" />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setShowEditor(false)}
+                className="px-4 py-2.5 rounded-xl bg-surface-container-high font-label text-sm text-on-surface-variant hover:text-on-surface transition-colors">
+                Annuleren
+              </button>
+              <button type="submit" disabled={savingCamp}
+                className="px-4 py-2.5 rounded-xl gradient-primary font-label text-sm font-semibold text-on-primary shadow-glow disabled:opacity-50">
+                {savingCamp ? 'Opslaan…' : (editId ? 'Bijwerken' : 'Opslaan als concept')}
+              </button>
+            </div>
+          </div>
+        </form>
       )}
     </div>
   )

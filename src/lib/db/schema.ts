@@ -350,6 +350,11 @@ export const schoolRoleEnum = pgEnum('school_role', [
   'eigenaar', 'instructeur', 'cursist'
 ])
 
+// Lifecycle-status van een lid in de klantrelatie (CRM)
+export const lifecycleStatusEnum = pgEnum('lifecycle_status', [
+  'lead', 'actief', 'inactief', 'oud_cursist', 'opgezegd'
+])
+
 // ─── ZEILSCHOLEN ─────────────────────────────────────────────────────────────
 
 export const sailingSchools = pgTable('sailing_schools', {
@@ -379,6 +384,12 @@ export const schoolMemberships = pgTable('school_memberships', {
   userId:    uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   role:      schoolRoleEnum('role').notNull(),
   joinedAt:  timestamp('joined_at').defaultNow(),
+  // ─── CRM VELDEN ──────────────────────────────────────────────────────────
+  lifecycleStatus: lifecycleStatusEnum('lifecycle_status').default('actief'),
+  tags:           text('tags').array(),                          // ['wachtlijst_2026','zeeklaar','vip']
+  geboortedatum:  date('geboortedatum'),                         // voor attenties/verjaardag
+  laatstContact:  timestamp('laatst_contact'),                   // wanneer we dit lid voor het laatst spraken
+  nieuwsbrief:    boolean('nieuwsbrief').default(true),         // ontvangt de school-nieuwsbrief?
   deletedAt: timestamp('deleted_at'),
 }, (t) => ({
   uniq:           uniqueIndex('school_memberships_school_user_uniq').on(t.schoolId, t.userId),
@@ -710,9 +721,11 @@ export const bookingLocks = pgTable('booking_locks', {
   expiresAt: timestamp('expires_at').notNull(),
   userId:    uuid('user_id').notNull().references(() => users.id),
 }, (t) => ({
+  // Eén lock-rij per (resource, lesson). Geen partieel predicaat op now():
+  // Postgres staat niet-IMMUTABLE functies (now()) niet toe in een index-predicaat.
+  // Verlopen locks worden in code overgenomen (upsert / delete-then-insert op basis van expiresAt).
   uniqueActive: uniqueIndex('booking_locks_active_uniq')
-    .on(t.resourceId, t.lessonId)
-    .where(sql`${t.expiresAt} > now()`),
+    .on(t.resourceId, t.lessonId),
 }))
 
 // ─── SCHOOL BERICHTEN ────────────────────────────────────────────────────────
@@ -738,11 +751,6 @@ export const sailingSchoolsRelations = relations(sailingSchools, ({ one, many })
   courses:     many(schoolCourses),
   fleet:       many(schoolFleet),
   lessons:     many(schoolLessons),
-}))
-
-export const schoolMembershipsRelations = relations(schoolMemberships, ({ one }) => ({
-  school: one(sailingSchools, { fields: [schoolMemberships.schoolId], references: [sailingSchools.id] }),
-  user:   one(users,          { fields: [schoolMemberships.userId],   references: [users.id] }),
 }))
 
 export const schoolCoursesRelations = relations(schoolCourses, ({ one, many }) => ({
@@ -810,4 +818,120 @@ export const bprRecordingsRelations = relations(bprRecordings, ({ one }) => ({
   user:     one(users,         { fields: [bprRecordings.userId],     references: [users.id] }),
   school:   one(sailingSchools, { fields: [bprRecordings.schoolId],   references: [sailingSchools.id] }),
   beoordeeldDoor: one(users, { fields: [bprRecordings.beoordeeldDoor], references: [users.id], relationName: 'bpr_reviewer' }),
+}))
+
+// ─── CRM CONTACT NOTITIES ────────────────────────────────────────────────────
+// Echte contactgeschiedenis per lid: wanneer gebeld/ge-maild, door wie, wat.
+
+export const crmNotes = pgTable('crm_notes', {
+  id:         uuid('id').defaultRandom().primaryKey(),
+  schoolId:   uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  membershipId: uuid('membership_id').notNull().references(() => schoolMemberships.id, { onDelete: 'cascade' }),
+  auteurId:   uuid('auteur_id').notNull().references(() => users.id),
+  kanaal:     varchar('kanaal', { length: 20 }).default('notitie'), // notitie | email | telefoon | sms | gesprek
+  inhoud:     text('inhoud').notNull(),
+  createdAt:  timestamp('created_at').defaultNow(),
+}, (t) => ({
+  schoolIdx: index('crm_notes_school_idx').on(t.schoolId),
+  membershipIdx: index('crm_notes_membership_idx').on(t.membershipId),
+}))
+
+// ─── NIEUWSBRIEF: ABONNEES ───────────────────────────────────────────────────
+// Double-opt-in per school. Een abonnee is gekoppeld aan een lid (membership)
+// wanneer bekend, anders loose opt-in via het inschrijfformulier op de site.
+
+export const subscriberStatusEnum = pgEnum('subscriber_status', [
+  'pending',   // opt-in aangevraagd, wacht op bevestiging
+  'actief',    // bevestigd, ontvangt nieuwsbrieven
+  'afgemeld',  // uitgeschreven
+  'gebounced', // hard bounce — nooit meer mailen
+])
+
+export const newsletterSubscribers = pgTable('newsletter_subscribers', {
+  id:           uuid('id').defaultRandom().primaryKey(),
+  schoolId:     uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  membershipId: uuid('membership_id').references(() => schoolMemberships.id, { onDelete: 'set null' }),
+  email:        text('email').notNull(),
+  naam:         text('naam'),
+  status:       subscriberStatusEnum('status').default('pending').notNull(),
+  token:        text('token'),                                // bevestig-/uitschrijf-token
+  aangemeldVia: varchar('aangemeld_via', { length: 20 }).default('school'), // school | website | import
+  confirmedAt:  timestamp('confirmed_at'),
+  afgemeldAt:   timestamp('afgemeld_at'),
+  createdAt:    timestamp('created_at').defaultNow(),
+}, (t) => ({
+  uniq: uniqueIndex('newsletter_subscribers_school_email_uniq').on(t.schoolId, t.email),
+  schoolIdx: index('newsletter_subscribers_school_idx').on(t.schoolId),
+  tokenUniq: uniqueIndex('newsletter_subscribers_token_uniq').on(t.token),
+}))
+
+// ─── NIEUWSBRIEF: CAMPAGNES ──────────────────────────────────────────────────
+// Een verzonden (of concept) nieuwsbrief.
+
+export const campaignStatusEnum = pgEnum('campaign_status', [
+  'concept', 'verzonden', 'gepland'
+])
+
+export const newsletterCampaigns = pgTable('newsletter_campaigns', {
+  id:          uuid('id').defaultRandom().primaryKey(),
+  schoolId:    uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  titel:       text('titel').notNull(),
+  subject:     text('subject').notNull(),
+  inhoud:      text('inhoud').notNull(),                       // HTML-body (nl)
+  status:      campaignStatusEnum('status').default('concept').notNull(),
+  ontvangers:  integer('ontvangers').default(0),              // aantal bij verzending
+  opens:       integer('opens').default(0),
+  kliks:       integer('kliks').default(0),
+  geplandVoor: timestamp('gepland_voor'),
+  verzondenAt: timestamp('verzonden_at'),
+  createdAt:   timestamp('created_at').defaultNow(),
+  updatedAt:   timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  schoolIdx: index('newsletter_campaigns_school_idx').on(t.schoolId),
+}))
+
+// ─── NIEUWSBRIEF: INDIVIDUELE VERZENDINGEN (tracking) ────────────────────────
+
+export const newsletterSends = pgTable('newsletter_sends', {
+  id:          uuid('id').defaultRandom().primaryKey(),
+  campaignId:  uuid('campaign_id').notNull().references(() => newsletterCampaigns.id, { onDelete: 'cascade' }),
+  subscriberId: uuid('subscriber_id').notNull().references(() => newsletterSubscribers.id, { onDelete: 'cascade' }),
+  status:      varchar('status', { length: 20 }).default('verzonden'), // verzonden | gebounced | geopend | geklikt
+  openedAt:    timestamp('opened_at'),
+  clickedAt:   timestamp('clicked_at'),
+  createdAt:   timestamp('created_at').defaultNow(),
+}, (t) => ({
+  campaignIdx: index('newsletter_sends_campaign_idx').on(t.campaignId),
+  subscriberIdx: index('newsletter_sends_subscriber_idx').on(t.subscriberId),
+}))
+
+// ─── CRM / NIEUWSBRIEF RELATIONS ─────────────────────────────────────────────
+
+export const schoolMembershipsRelations = relations(schoolMemberships, ({ one, many }) => ({
+  school: one(sailingSchools, { fields: [schoolMemberships.schoolId], references: [sailingSchools.id] }),
+  user:   one(users,          { fields: [schoolMemberships.userId],   references: [users.id] }),
+  crmNotes: many(crmNotes),
+  subscriptions: many(newsletterSubscribers),
+}))
+
+export const crmNotesRelations = relations(crmNotes, ({ one }) => ({
+  school:     one(sailingSchools,   { fields: [crmNotes.schoolId],     references: [sailingSchools.id] }),
+  membership: one(schoolMemberships, { fields: [crmNotes.membershipId], references: [schoolMemberships.id] }),
+  auteur:     one(users,             { fields: [crmNotes.auteurId],     references: [users.id] }),
+}))
+
+export const newsletterSubscribersRelations = relations(newsletterSubscribers, ({ one, many }) => ({
+  school:     one(sailingSchools, { fields: [newsletterSubscribers.schoolId], references: [sailingSchools.id] }),
+  membership: one(schoolMemberships, { fields: [newsletterSubscribers.membershipId], references: [schoolMemberships.id] }),
+  sends:      many(newsletterSends),
+}))
+
+export const newsletterCampaignsRelations = relations(newsletterCampaigns, ({ one, many }) => ({
+  school: one(sailingSchools, { fields: [newsletterCampaigns.schoolId], references: [sailingSchools.id] }),
+  sends:  many(newsletterSends),
+}))
+
+export const newsletterSendsRelations = relations(newsletterSends, ({ one }) => ({
+  campaign:    one(newsletterCampaigns, { fields: [newsletterSends.campaignId], references: [newsletterCampaigns.id] }),
+  subscriber:  one(newsletterSubscribers, { fields: [newsletterSends.subscriberId], references: [newsletterSubscribers.id] }),
 }))
