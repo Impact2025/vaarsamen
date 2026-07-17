@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { auth } from '@/lib/auth'
 import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
+import { ZWALUW_ACCOUNTS, ZWALUW_SCHOOL_ID } from '@/lib/db/seeds/zwaluw'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Zeilschool inloggen · VaarSamen' }
@@ -132,9 +133,9 @@ export default async function SchoolLoginPage({
             </form>
           </div>
 
-          {/* Multi-demo: instructeur + cursist */}
+          {/* Multi-demo: eigenaar + instructeur + cursist */}
           {isMultiDemoEnabled && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p className="text-center font-label text-xs text-on-surface-variant uppercase tracking-wider">
                 Probeer de demo
               </p>
@@ -144,9 +145,12 @@ export default async function SchoolLoginPage({
                   action={async () => {
                     'use server'
                     try {
+                      const dest = account.label === 'Demo cursist'
+                        ? '/mijn-vorderingen'
+                        : `/school/${DEMO_SCHOOL_ID}/dashboard`
                       await signIn('demo-user', {
                         userId: account.id,
-                        redirectTo: `/school/${DEMO_SCHOOL_ID}/dashboard`,
+                        redirectTo: dest,
                       })
                     } catch (e: unknown) {
                       if (isRedirectError(e)) throw e
@@ -179,6 +183,56 @@ export default async function SchoolLoginPage({
                   </button>
                 </form>
               ))}
+
+              <div className="pt-1">
+                <p className="font-label text-xs text-primary font-bold mb-2 uppercase tracking-wider text-center">
+                  Zeilschool De Zwaluw
+                </p>
+                {ZWALUW_ACCOUNTS.map(account => (
+                  <form
+                    key={account.id}
+                    action={async () => {
+                      'use server'
+                      try {
+                        const dest = account.label === 'Demo cursist'
+                          ? '/mijn-vorderingen'
+                          : `/school/${ZWALUW_SCHOOL_ID}/dashboard`
+                        await signIn('demo-user', {
+                          userId: account.id,
+                          redirectTo: dest,
+                        })
+                      } catch (e: unknown) {
+                        if (isRedirectError(e)) throw e
+                        redirect('/school/login?error=demo')
+                      }
+                    }}
+                  >
+                    <button
+                      type="submit"
+                      className="w-full flex items-center gap-3 py-3 px-5 mb-2
+                                 glass-card border border-primary/20 rounded-2xl
+                                 text-on-surface font-label text-sm
+                                 hover:border-primary/40 active:scale-95 transition-all
+                                 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <span
+                        className="material-symbols-outlined text-primary text-xl flex-shrink-0"
+                        aria-hidden="true"
+                        style={{ fontVariationSettings: "'FILL' 1" }}
+                      >
+                        {account.icon}
+                      </span>
+                      <div className="text-left min-w-0">
+                        <p className="font-semibold truncate">{account.name}</p>
+                        <p className="text-on-surface-variant text-xs">{account.label}</p>
+                      </div>
+                      <span className="material-symbols-outlined text-on-surface-variant/40 text-base ml-auto flex-shrink-0" aria-hidden="true">
+                        arrow_forward
+                      </span>
+                    </button>
+                  </form>
+                ))}
+              </div>
             </div>
           )}
 

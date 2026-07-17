@@ -115,12 +115,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.sub = user.id
         token.isAdmin = (user as any).isAdmin ?? false
-        const [profile] = await db
-          .select({ isOnboarded: profiles.isOnboarded })
-          .from(profiles)
-          .where(eq(profiles.userId, user.id!))
-          .limit(1)
-        token.isOnboarded = profile?.isOnboarded ?? false
+        // Provider kan isOnboarded al afdwingen (demo-accounts zijn direct klaar).
+        // Alleen de DB raadplegen als de provider het niet expliciet op true zette.
+        const providerOnboarded = (user as any).isOnboarded === true
+        if (providerOnboarded) {
+          token.isOnboarded = true
+        } else {
+          const [profile] = await db
+            .select({ isOnboarded: profiles.isOnboarded })
+            .from(profiles)
+            .where(eq(profiles.userId, user.id!))
+            .limit(1)
+          token.isOnboarded = profile?.isOnboarded ?? false
+        }
       }
       return token
     },
