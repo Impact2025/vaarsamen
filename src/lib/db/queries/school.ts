@@ -56,6 +56,30 @@ export async function getActiveSubscribers(schoolId: string): Promise<typeof new
     ))
 }
 
+// Actieve abonnees gefilterd op een segment.
+//  'alle'       → alle actieve
+//  'leden'      → actieve abonnees die ook school-lid zijn
+//  'geen_leden' → actieve abonnees zonder lidmaatschap
+export async function getActiveSubscribersBySegment(
+  schoolId: string,
+  segment: 'alle' | 'leden' | 'geen_leden',
+): Promise<typeof newsletterSubscribers.$inferSelect[]> {
+  const base = db
+    .select({ sub: newsletterSubscribers })
+    .from(newsletterSubscribers)
+    .leftJoin(schoolMemberships, eq(newsletterSubscribers.membershipId, schoolMemberships.id))
+    .where(and(
+      eq(newsletterSubscribers.schoolId, schoolId),
+      eq(newsletterSubscribers.status, 'actief'),
+    ))
+
+  const rows = await base
+  const isLid = (r: typeof rows[number]) => !!r.sub.membershipId && r.sub.membershipId !== null
+  if (segment === 'leden') return rows.filter(r => isLid(r)).map(r => r.sub)
+  if (segment === 'geen_leden') return rows.filter(r => !isLid(r)).map(r => r.sub)
+  return rows.map(r => r.sub)
+}
+
 // ─── NIEUWSBRIEF: CAMPAGNES ──────────────────────────────────────────────────
 
 export type CampaignRow = typeof newsletterCampaigns.$inferSelect

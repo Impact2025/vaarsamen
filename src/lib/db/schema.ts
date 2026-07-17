@@ -974,6 +974,7 @@ export const newsletterCampaigns = pgTable('newsletter_campaigns', {
   kliks:       integer('kliks').default(0),
   geplandVoor: timestamp('gepland_voor'),
   verzondenAt: timestamp('verzonden_at'),
+  template:    varchar('template', { length: 40 }),            // gekozen start-template (id)
   createdAt:   timestamp('created_at').defaultNow(),
   updatedAt:   timestamp('updated_at').defaultNow(),
 }, (t) => ({

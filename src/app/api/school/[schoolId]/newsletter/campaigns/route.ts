@@ -46,6 +46,7 @@ export async function POST(
     titel: parsed.data.titel,
     subject: parsed.data.subject,
     inhoud: parsed.data.inhoud,
+    template: parsed.data.template ?? null,
     status: 'concept',
   }).returning()
 
@@ -78,6 +79,7 @@ export async function PATCH(
     ...(parsed.data.titel !== undefined ? { titel: parsed.data.titel } : {}),
     ...(parsed.data.subject !== undefined ? { subject: parsed.data.subject } : {}),
     ...(parsed.data.inhoud !== undefined ? { inhoud: parsed.data.inhoud } : {}),
+    ...(parsed.data.template !== undefined ? { template: parsed.data.template ?? null } : {}),
     updatedAt: new Date(),
   }).where(and(eq(newsletterCampaigns.id, id), eq(newsletterCampaigns.schoolId, schoolId)))
 

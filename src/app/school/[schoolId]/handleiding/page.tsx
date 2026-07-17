@@ -52,12 +52,16 @@ export default async function HandleidingPage({ params }: Props) {
           { href: '#lessen',         label: 'Lessen & cursussen beheren'    },
           { href: '#lesdag',         label: 'Lesdag registreren'            },
           { href: '#cursisten',      label: 'Cursisten & vorderingen'       },
-          ...(isInstructeur ? [{ href: '#berichten', label: 'Berichten & mededelingen' }] : []),
+          ...(isInstructeur ? [
+            { href: '#berichten', label: 'Berichten & mededelingen' },
+            { href: '#nieuwsbrief', label: 'Nieuwsbrief versturen' },
+          ] : []),
           ...(isEigenaar ? [
             { href: '#team',         label: 'Team & uitnodigingen'          },
             { href: '#vloot',        label: 'Vloot & beschikbaarheid'       },
             { href: '#verhuur',      label: 'Bootverhuur'                   },
             { href: '#meldingen',    label: 'Meldingen & onderhoud'         },
+            { href: '#financieel',   label: 'Financieel overzicht'          },
             { href: '#instellingen', label: 'Instellingen & tarieven'       },
           ] : []),
         ].map(item => (
@@ -454,6 +458,116 @@ export default async function HandleidingPage({ params }: Props) {
               Elke regel wordt als aparte opmerking getoond bij de cursist.
             </p>
           </SubSection>
+        </Section>
+      )}
+
+      {/* ── 11. Nieuwsbrief ─────────────────────────────────────────────────── */}
+      {isInstructeur && (
+        <Section id="nieuwsbrief" icon="campaign" title="Nieuwsbrief versturen">
+          <p>
+            Met de tab <strong>Nieuwsbrief</strong> bereik je al je abonnees in één keer —
+            leden én niet-leden die zich hebben ingeschreven.
+          </p>
+
+          <SubSection title="Abonnees beheren">
+            <p className="text-on-surface-variant">
+              Voeg een adres toe via <Kbd>Uitnodigen</Kbd>. Er gaat automatisch een
+              bevestigingsmail uit (double-opt-in): pas na bevestiging ontvangt het adres
+              nieuwsbrieven. Je ziet per abonnee de status{' '}
+              <em>actief · wacht bevestiging · uitgeschreven · gebounced</em>.
+            </p>
+          </SubSection>
+
+          <SubSection title="Een campagne schrijven (pro editor)">
+            <ol className="list-decimal list-inside space-y-1.5 text-on-surface-variant">
+              <li>Tik op <Kbd>+ Nieuwe campagne</Kbd>.</li>
+              <li>
+                Kies eventueel een <strong>start-template</strong> (Welkom, Maandelijks,
+                Activiteit, Seizoens-afsluiting) — de opmaak en tekst staan dan al klaar.
+              </li>
+              <li>
+                Schrijf in de <strong>editor</strong>: vet, cursief, koppen, lijsten, links
+                en afbeeldingen zijn beschikbaar via de werkbalk.
+              </li>
+              <li>
+                Voeg persoonlijke velden toe via <strong>Invoegen: persoonlijke velden</strong>,
+                bijv. <code className="font-mono text-[12px] text-primary">{'{{naam}}'}</code> en{' '}
+                <code className="font-mono text-[12px] text-primary">{'{{school_naam}}'}</code> —
+                die worden per ontvanger automatisch ingevuld.
+              </li>
+              <li>
+                Schakel naar <strong>Voorbeeld</strong> om te zien hoe de mail eruitziet
+                met voorbeeldgegevens.
+              </li>
+              <li>Tik op <Kbd>Opslaan als concept</Kbd>.</li>
+            </ol>
+          </SubSection>
+
+          <SubSection title="Verzenden met segment & test">
+            <p className="text-on-surface-variant mb-2">
+              Bij elke concept-campagne kies je aan wie je verstuurt:
+            </p>
+            <ul className="list-disc list-inside space-y-1.5 text-on-surface-variant">
+              <li><strong>Alle actieve</strong> — iedereen die bevestigd is.</li>
+              <li><strong>Alleen leden</strong> — abonnees die ook schoollid zijn.</li>
+              <li><strong>Alleen niet-leden</strong> — abonnees zonder lidmaatschap.</li>
+            </ul>
+            <p className="text-on-surface-variant mt-2">
+              Vul een <strong>test-e-mail</strong> in om eerst een proefverzending naar jezelf
+              te sturen (de campagne blijft dan op concept). Zo check je opmaak en merge-tags
+              voordat je naar echte abonnees stuurt.
+            </p>
+          </SubSection>
+
+          <Tip>
+            Verstuur altijd eerst een test naar jezelf. Controleer of de merge-tags
+            (&#123;&#123;naam&#125;&#125; e.d.) correct worden ingevuld en of de uitschrijf-link onderaan werkt.
+          </Tip>
+        </Section>
+      )}
+
+      {/* ── 12. Financieel ── (eigenaar + instructeur) ─────────────────────── */}
+      {isInstructeur && (
+        <Section id="financieel" icon="euro" title="Financieel overzicht">
+          <p>
+            Via <strong>Financieel</strong> (knop rechtsboven in de balk) zie je in één oogopslag
+            de inkomsten en open posten van je school.
+          </p>
+
+          <SubSection title="Wat je ziet">
+            <ul className="list-disc list-inside space-y-1.5 text-on-surface-variant">
+              <li><strong>Verhuur ontvangen / open</strong> — omzet uit bootverhuur en wat nog niet betaald is.</li>
+              <li><strong>Lidmaatschap ontvangen / open</strong> — contributie binnen en wat nog loopt.</li>
+              <li><strong>Lidmaatschappen</strong> — per lid de contributie, betaalstatus en of de SEPA-machtiging compleet is.</li>
+              <li><strong>Laatste bootverhuur</strong> — recente verhuringen met bedrag en betaald/open.</li>
+            </ul>
+          </SubSection>
+
+          <SubSection title="Exports">
+            <ul className="list-disc list-inside space-y-1.5 text-on-surface-variant">
+              <li>
+                <strong>SEPA-incasso (XML)</strong> — een kant-en-klaar bestand voor je bank met
+                alle leden die een geldige incasso-machtiging + IBAN hebben en nog open contributie.
+              </li>
+              <li>
+                <strong>BTW-overzicht (CSV)</strong> — je verhuur-inkomsten met 21% BTW-opsplitsing,
+                klaar voor de boekhouding.
+              </li>
+            </ul>
+          </SubSection>
+
+          <SubSection title="SEPA-crediteur instellen">
+            <p className="text-on-surface-variant">
+              Stel je eigen gegevens (IBAN, BIC, creditor-ID) in via{' '}
+              <Kbd>Financieel → Crediteur instellen</Kbd>. Deze komen in het SEPA-bestand
+              en moeten overeenkomen met wat je bank heeft geregistreerd.
+            </p>
+          </SubSection>
+
+          <Tip>
+            SEPA-incasso en banksync verlopen buiten VaarSamen: je downloadt het bestand en
+            uploadt het in je bankomgeving. Markeer posten hier handmatig als &quot;betaald&quot;.
+          </Tip>
         </Section>
       )}
 
