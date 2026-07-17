@@ -1,16 +1,17 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { newsletterCampaigns, newsletterSubscribers, newsletterSends , isStaff } from '@/lib/db/schema'
-import { getSchoolMembership, getSchoolById, getActiveSubscribers } from '@/lib/db/queries/school'
+import { getSchoolMembership, getSchoolById, getActiveSubscribersBySegment } from '@/lib/db/queries/school'
 import { sendEmail } from '@/lib/email'
 import { newsletterCampaignEmail } from '@/emails/templates'
+import { campaignSendSchema } from '@/lib/validations'
 import { eq, and, inArray } from 'drizzle-orm'
 import { randomBytes } from 'crypto'
 
 const BASE = process.env.NEXTAUTH_URL ?? 'https://vaarsamen.nl'
 
-// POST /api/school/[schoolId]/newsletter/send — verstuur campagne naar actieve abonnees
-// Body: { campaignId }
+// POST /api/school/[schoolId]/newsletter/send — verstuur campagne
+// Body: { campaignId, segment?, testEmail? }
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ schoolId: string }> },
@@ -24,28 +25,42 @@ export async function POST(
     return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
-  const body = await req.json()
-  const campaignId = body?.campaignId
-  if (!campaignId) return Response.json({ error: 'campaignId vereist' }, { status: 400 })
+  const raw = await req.json().catch(() => ({}))
+  const parsed = campaignSendSchema.safeParse(raw)
+  if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 })
+  const { campaignId, segment, testEmail } = parsed.data
 
-  const campaign = await db
-    .select()
-    .from(newsletterCampaigns)
-    .where(and(eq(newsletterCampaigns.id, campaignId), eq(newsletterCampaigns.schoolId, schoolId)))
-    .limit(1)
-    .then(r => r[0] ?? null)
-
+  const [campaign, school] = await Promise.all([
+    db.select().from(newsletterCampaigns)
+      .where(and(eq(newsletterCampaigns.id, campaignId), eq(newsletterCampaigns.schoolId, schoolId)))
+      .limit(1).then(r => r[0] ?? null),
+    getSchoolById(schoolId),
+  ])
   if (!campaign) return Response.json({ error: 'Campagne niet gevonden' }, { status: 404 })
+  if (!school) return Response.json({ error: 'School niet gevonden' }, { status: 404 })
   if (campaign.status === 'verzonden') {
     return Response.json({ error: 'Deze campagne is al verzonden' }, { status: 409 })
   }
 
-  const school = await getSchoolById(schoolId)
-  if (!school) return Response.json({ error: 'School niet gevonden' }, { status: 404 })
+  // TEST-modus: stuur alleen naar 1 adres, markeer campagne NIET als verzonden
+  if (testEmail) {
+    const token = randomBytes(20).toString('hex')
+    const unsubUrl = `${BASE}/api/school/${schoolId}/newsletter/unsubscribe?token=${token}`
+    const webUrl = `${BASE}/school/${schoolId}`
+    await sendEmail({
+      to: testEmail,
+      subject: `[TEST] ${campaign.subject}`,
+      html: newsletterCampaignEmail({
+        schoolName: school.name, subject: campaign.subject,
+        bodyHtml: campaign.inhoud, unsubscribeUrl: unsubUrl, webUrl,
+      }),
+    })
+    return Response.json({ ok: true, test: true, verzonden: 1, totaal: 1 })
+  }
 
-  const subscribers = await getActiveSubscribers(schoolId)
+  const subscribers = await getActiveSubscribersBySegment(schoolId, segment)
   if (subscribers.length === 0) {
-    return Response.json({ error: 'Geen actieve abonnees om naar te verzenden' }, { status: 400 })
+    return Response.json({ error: 'Geen actieve abonnees in dit segment' }, { status: 400 })
   }
 
   // Per ontvanger: uniek uitschrijf-token + send-record (voor tracking)
@@ -90,7 +105,6 @@ export async function POST(
       })
       if (res.ok) verzonden++
       else {
-        // markeer als bounce bij harde fout
         await db.update(newsletterSubscribers)
           .set({ status: 'gebounced' })
           .where(eq(newsletterSubscribers.id, sub.id))

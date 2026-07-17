@@ -531,6 +531,18 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
+        },
+        "bedrag_centen": {
+          "name": "bedrag_centen",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "betaald_op": {
+          "name": "betaald_op",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2491,6 +2503,12 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
+        },
+        "financieel": {
+          "name": "financieel",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -3124,50 +3142,54 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
+        },
+        "lidmaatschap_bedrag": {
+          "name": "lidmaatschap_bedrag",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lidmaatschap_status": {
+          "name": "lidmaatschap_status",
+          "type": "membership_fee_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "open"
+        },
+        "sepa_iban": {
+          "name": "sepa_iban",
+          "type": "varchar(34)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sepa_naam": {
+          "name": "sepa_naam",
+          "type": "varchar(70)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sepa_machtiging_id": {
+          "name": "sepa_machtiging_id",
+          "type": "varchar(35)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sepa_machtiging_op": {
+          "name": "sepa_machtiging_op",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "school_memberships_school_user_uniq": {
-          "name": "school_memberships_school_user_uniq",
+        "school_memberships_school_fee_idx": {
+          "name": "school_memberships_school_fee_idx",
           "columns": [
-            {
-              "expression": "school_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "school_id",
+            "lidmaatschap_status"
           ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "school_memberships_school_deleted_idx": {
-          "name": "school_memberships_school_deleted_idx",
-          "columns": [
-            {
-              "expression": "school_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "deleted_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -4512,6 +4534,13 @@
         "vol",
         "gevaren",
         "geannuleerd"
+      ]
+    },
+    "public.membership_fee_status": {
+      "name": "public.membership_fee_status",
+      "values": [
+        "open",
+        "betaald"
       ]
     }
   },

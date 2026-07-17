@@ -81,9 +81,7 @@ if (process.env.NODE_ENV !== 'production' && process.env.DEMO_EMAIL) {
 
 // Multi-demo: meerdere demo accounts (instructeur + cursist)
 // Ondersteunt Zeilschool De Zwaluw accounts
-// In productie actief zodra ALLOW_DEMO_USERS=true (staat aan op Vercel) — zo
-// werken de demo-knoppen op /login en /school/login voor testen/showcases.
-if (process.env.ALLOW_DEMO_USERS) {
+if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_USERS) {
   providers.push(
     Credentials({
       id:   'demo-user',

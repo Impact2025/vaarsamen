@@ -11,8 +11,10 @@ import { BOAT_LABELS } from '@/types'
 import { AnimatePresence } from 'framer-motion'
 import { DashboardTour } from '@/components/onboarding/DashboardTour'
 import { useDashboardTour } from '@/hooks/useDashboardTour'
+import { NieuwsbriefEditor } from './NieuwsbriefEditor'
+import { Tooltip } from '@/components/Tooltip'
 
-// ─── TOAST ────────────────────────────────────────────────────────────────────
+// ─── TOAST ────────────────────────────────────────────────────────────
 
 type ToastEntry = { id: number; message: string; type: 'success' | 'error' }
 
@@ -81,32 +83,32 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
 
   useEffect(() => setMounted(true), [])
 
-  const navItems: { id: Tab; label: string; icon: string }[] = isEigenaar
+  const navItems: { id: Tab; label: string; icon: string; tip: string }[] = isEigenaar
     ? [
-        { id: 'lessen',       label: 'Lessen',       icon: 'calendar_today' },
-        { id: 'leden',        label: 'Team',         icon: 'group'          },
-        { id: 'berichten',    label: 'Berichten',    icon: 'forum'          },
-        { id: 'nieuwsbrief',  label: 'Nieuwsbrief',  icon: 'campaign'       },
-        { id: 'vloot',        label: 'Vloot',        icon: 'sailing'        },
-        { id: 'verhuur',      label: 'Verhuur',      icon: 'key'            },
-        { id: 'meldingen',    label: 'Meldingen',    icon: 'report'         },
-        { id: 'klussen',      label: 'Klussen',      icon: 'build'          },
-        { id: 'instellingen', label: 'Instellingen', icon: 'settings'       },
+        { id: 'lessen',       label: 'Lessen',       icon: 'calendar_today', tip: 'Planning van cursussen en lesdagen' },
+        { id: 'leden',        label: 'Team',         icon: 'group',          tip: 'Leden, rollen en uitnodigingen beheren' },
+        { id: 'berichten',    label: 'Berichten',    icon: 'forum',          tip: 'Prikbord voor het hele team' },
+        { id: 'nieuwsbrief',  label: 'Nieuwsbrief',  icon: 'campaign',       tip: 'E-mailcampagnes naar je abonnees' },
+        { id: 'vloot',        label: 'Vloot',        icon: 'sailing',        tip: 'Schoolboten en beschikbaarheid' },
+        { id: 'verhuur',      label: 'Verhuur',      icon: 'key',            tip: 'Huuraanvragen van cursisten' },
+        { id: 'meldingen',    label: 'Meldingen',    icon: 'report',         tip: 'Schade- en onderhoudsmeldingen' },
+        { id: 'klussen',      label: 'Klussen',      icon: 'build',          tip: 'Onderhoudsklussen voor vrijwilligers' },
+        { id: 'instellingen', label: 'Instellingen', icon: 'settings',       tip: 'Schoolgegevens, tarieven en verhuurblokken' },
       ]
     : isKlusser
       ? [
-        { id: 'klussen',      label: 'Klussen',      icon: 'build'          },
-        { id: 'berichten',    label: 'Berichten',    icon: 'forum'          },
+        { id: 'klussen',      label: 'Klussen',      icon: 'build',          tip: 'Onderhoudsklussen voor vrijwilligers' },
+        { id: 'berichten',    label: 'Berichten',    icon: 'forum',          tip: 'Prikbord voor het hele team' },
       ]
     : myRole === 'lid'
       ? [
-        { id: 'meldingen', label: 'Melden', icon: 'report' },
-        { id: 'berichten', label: 'Berichten', icon: 'forum' },
+        { id: 'meldingen', label: 'Melden', icon: 'report', tip: 'Schade melden aan de school' },
+        { id: 'berichten', label: 'Berichten', icon: 'forum', tip: 'Prikbord voor het hele team' },
       ]
     : [
-        { id: 'lessen',    label: 'Lessen',    icon: 'calendar_today' },
-        { id: 'cursisten', label: 'Cursisten', icon: 'school'         },
-        { id: 'berichten', label: 'Berichten', icon: 'forum'          },
+        { id: 'lessen',    label: 'Lessen',    icon: 'calendar_today', tip: 'Planning van cursussen en lesdagen' },
+        { id: 'cursisten', label: 'Cursisten', icon: 'school',         tip: 'Cursisten en hun vorderingen' },
+        { id: 'berichten', label: 'Berichten', icon: 'forum',          tip: 'Prikbord voor het hele team' },
       ]
 
   return (
@@ -183,22 +185,23 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
         className="flex gap-1 bg-surface-container rounded-2xl p-1 border border-white/5 lg:col-start-1 lg:row-start-1 lg:row-span-3 lg:self-start lg:sticky lg:top-20 lg:flex-col lg:gap-0.5 lg:bg-transparent lg:border-0 lg:p-0"
       >
         {navItems.map(tab => (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={[
-              'flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-label text-sm font-semibold transition-all',
-              'lg:flex-none lg:justify-start lg:gap-3',
-              activeTab === tab.id
-                ? 'bg-primary/15 text-primary'
-                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high',
-            ].join(' ')}
-          >
-            <span className="material-symbols-outlined text-base lg:text-xl" aria-hidden="true">{tab.icon}</span>
-            <span className="hidden sm:inline">{tab.label}</span>
-          </button>
+          <Tooltip key={tab.id} label={tab.tip}>
+            <button
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={[
+                'flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-label text-sm font-semibold transition-all',
+                'lg:flex-none lg:justify-start lg:gap-3',
+                activeTab === tab.id
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high',
+              ].join(' ')}
+            >
+              <span className="material-symbols-outlined text-base lg:text-xl" aria-hidden="true">{tab.icon}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          </Tooltip>
         ))}
       </nav>
 
@@ -3158,6 +3161,7 @@ type Subscriber = {
 type Campaign = {
   id: string; titel: string; subject: string; inhoud: string
   status: 'concept' | 'verzonden' | 'gepland'
+  template?: string | null
   ontvangers: number; opens: number; kliks: number; verzondenAt: string | null
 }
 
@@ -3178,6 +3182,7 @@ function NieuwsbriefTab({ schoolId, schoolName, toast }: {
   const [titel, setTitel]           = useState('')
   const [subject, setSubject]       = useState('')
   const [inhoud, setInhoud]         = useState('')
+  const [template, setTemplate]       = useState('')
   const [savingCamp, setSavingCamp] = useState(false)
   const [sending, setSending]       = useState(false)
 
@@ -3223,19 +3228,17 @@ function NieuwsbriefTab({ schoolId, schoolName, toast }: {
     setTitel(c?.titel ?? '')
     setSubject(c?.subject ?? '')
     setInhoud(c?.inhoud ?? '')
+    setTemplate(c?.template ?? '')
     setShowEditor(true)
   }
 
-  async function saveCampaign(e: React.FormEvent) {
-    e.preventDefault(); setSavingCamp(true)
-    const url = editId
-      ? `/api/school/${schoolId}/newsletter/campaigns`
-      : `/api/school/${schoolId}/newsletter/campaigns`
+  async function saveCampaign(v: { titel: string; subject: string; inhoud: string; template?: string }) {
+    setSavingCamp(true)
     const method = editId ? 'PATCH' : 'POST'
     const body = editId
-      ? { id: editId, titel, subject, inhoud }
-      : { titel, subject, inhoud }
-    const res = await fetch(url, {
+      ? { id: editId, ...v }
+      : v
+    const res = await fetch(`/api/school/${schoolId}/newsletter/campaigns`, {
       method, headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
@@ -3245,16 +3248,19 @@ function NieuwsbriefTab({ schoolId, schoolName, toast }: {
   }
 
   async function sendCampaign(id: string) {
-    if (!confirm('Nieuwsbrief verzenden naar alle actieve abonnees?')) return
+    const segment = (document.getElementById('nl-segment') as HTMLSelectElement | null)?.value ?? 'alle'
+    const testEmail = (document.getElementById('nl-testemail') as HTMLInputElement | null)?.value?.trim() || undefined
+    const label = segment === 'leden' ? 'alleen leden' : segment === 'geen_leden' ? 'alleen niet-leden' : 'alle actieve abonnees'
+    if (!testEmail && !confirm(`Nieuwsbrief verzenden naar ${label}?`)) return
     setSending(true)
     const res = await fetch(`/api/school/${schoolId}/newsletter/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaignId: id }),
+      body: JSON.stringify({ campaignId: id, segment, testEmail }),
     })
     setSending(false)
     const d = await res.json().catch(() => ({}))
-    if (res.ok) toast(`Verzonden naar ${d.verzonden} van ${d.totaal} abonnees`)
+    if (res.ok) toast(testEmail ? `Test verzonden naar ${testEmail}` : `Verzonden naar ${d.verzonden} van ${d.totaal} abonnees`)
     else toast(typeof d.error === 'string' ? d.error : 'Verzenden mislukt', 'error')
     load()
   }
@@ -3380,10 +3386,20 @@ function NieuwsbriefTab({ schoolId, schoolName, toast }: {
                   <span className="material-symbols-outlined text-base" aria-hidden="true">edit</span>
                 </button>
                 {c.status !== 'verzonden' && (
-                  <button onClick={() => sendCampaign(c.id)} disabled={sending} aria-label="Verzenden"
-                    className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40">
-                    <span className="material-symbols-outlined text-base" aria-hidden="true">send</span>
-                  </button>
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    <select id="nl-segment" defaultValue="alle"
+                      className="px-2 py-1 rounded-lg bg-surface border border-white/10 font-label text-[11px] text-on-surface-variant">
+                      <option value="alle">Alle actieve</option>
+                      <option value="leden">Alleen leden</option>
+                      <option value="geen_leden">Alleen niet-leden</option>
+                    </select>
+                    <input id="nl-testemail" type="email" placeholder="test@..." 
+                      className="w-24 px-2 py-1 rounded-lg bg-surface border border-white/10 font-label text-[11px] text-on-surface-variant" />
+                    <button onClick={() => sendCampaign(c.id)} disabled={sending} aria-label="Verzenden"
+                      className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40">
+                      <span className="material-symbols-outlined text-base" aria-hidden="true">send</span>
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -3391,36 +3407,17 @@ function NieuwsbriefTab({ schoolId, schoolName, toast }: {
         )}
       </div>
 
-      {/* Editor modal */}
+      {/* Editor modal (pro) */}
       {showEditor && (
-        <form onSubmit={saveCampaign} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowEditor(false)}>
-          <div className="w-full max-w-2xl bg-surface-container rounded-2xl border border-white/10 p-5 space-y-3 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-headline font-bold text-lg text-on-surface">{editId ? 'Campagne bewerken' : 'Nieuwe campagne'}</h3>
-              <button type="button" onClick={() => setShowEditor(false)} aria-label="Sluiten"
-                className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-on-surface hover:bg-white/5">
-                <span className="material-symbols-outlined" aria-hidden="true">close</span>
-              </button>
-            </div>
-            <input value={titel} onChange={e => setTitel(e.target.value)} required placeholder="Titel (intern)"
-              className="w-full px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60" />
-            <input value={subject} onChange={e => setSubject(e.target.value)} required placeholder="Onderwerp van de e-mail"
-              className="w-full px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60" />
-            <textarea value={inhoud} onChange={e => setInhoud(e.target.value)} required rows={10}
-              placeholder="Schrijf hier je nieuwsbrief (HTML is toegestaan)…"
-              className="w-full px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60 resize-none" />
-            <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setShowEditor(false)}
-                className="px-4 py-2.5 rounded-xl bg-surface-container-high font-label text-sm text-on-surface-variant hover:text-on-surface transition-colors">
-                Annuleren
-              </button>
-              <button type="submit" disabled={savingCamp}
-                className="px-4 py-2.5 rounded-xl gradient-primary font-label text-sm font-semibold text-on-primary shadow-glow disabled:opacity-50">
-                {savingCamp ? 'Opslaan…' : (editId ? 'Bijwerken' : 'Opslaan als concept')}
-              </button>
-            </div>
-          </div>
-        </form>
+        <NieuwsbriefEditor
+          initialTitel={titel}
+          initialSubject={subject}
+          initialInhoud={inhoud}
+          initialTemplate={template}
+          saving={savingCamp}
+          onClose={() => setShowEditor(false)}
+          onSave={saveCampaign}
+        />
       )}
     </div>
   )

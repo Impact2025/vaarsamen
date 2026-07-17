@@ -120,6 +120,14 @@ export const schoolCreateSchema = z.object({
 
 export const schoolUpdateSchema = schoolCreateSchema.partial().omit({ slug: true }).extend({
   verhuurTarieven: z.any().optional(),
+  // SEPA-crediteur config (opgeslagen in sailingSchools.financieel)
+  financieel: z.object({
+    naam:       z.string().min(2).max(70),
+    iban:       z.string().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/, 'Ongeldige IBAN'),
+    bic:        z.string().regex(/^[A-Z0-9]{8,11}$/, 'Ongeldige BIC').optional().or(z.literal('')),
+    creditorId: z.string().min(3).max(35),
+    type:       z.enum(['RCUR', 'FRST']).default('RCUR'),
+  }).optional(),
 })
 
 // ─── CURSUS ───────────────────────────────────────────────────────────────────
@@ -222,10 +230,16 @@ export const campaignSchema = z.object({
   titel:   z.string().min(2, 'Titel moet minimaal 2 tekens zijn').max(150),
   subject: z.string().min(2, 'Onderwerp is verplicht').max(200),
   inhoud:  z.string().min(10, 'Schrijf eerst wat inhoud').max(50000),
+  // optioneel: template-naam / segment voor toekomstige UI (niet verplicht)
+  template: z.string().max(40).optional(),
 })
 
 export const campaignSendSchema = z.object({
   campaignId: z.string().min(1, 'Campagne ID vereist'),
+  // segment: 'alle' | 'leden' | 'geen_leden' | 'actief_30d' — default 'alle'
+  segment: z.enum(['alle', 'leden', 'geen_leden']).default('alle'),
+  // optioneel: stuur een test naar dit adres i.p.v. naar iedereen
+  testEmail: z.string().email().optional(),
 })
 
 // ─── CRM ────────────────────────────────────────────────────────────────────

@@ -365,6 +365,9 @@ export const membershipStatusEnum = pgEnum('membership_status', [
 export type SchoolRole       = (typeof schoolRoleEnum.enumValues)[number]
 export type MembershipStatus = (typeof membershipStatusEnum.enumValues)[number]
 
+// Betaalstatus van de lidmaatschapscontributie.
+export const membershipFeeEnum = pgEnum('membership_fee_status', ['open', 'betaald'])
+
 // Staff = mag de school beheren. Klusser is bewust géén staff: die ziet de
 // klussenlijst, niet de ledenadministratie.
 export const STAFF_ROLES = ['eigenaar', 'instructeur'] as const
@@ -387,6 +390,10 @@ export const sailingSchools = pgTable('sailing_schools', {
   logoUrl:          text('logo_url'),
   ownerUserId:      uuid('owner_user_id').notNull().references(() => users.id),
   verhuurTarieven:  jsonb('verhuur_tarieven'),                 // VerhuurTarieven | null
+  // ─── FINANCIEEL (SEPA crediteur) ───────────────────────
+  // Gegevens van de school als SEPA-crediteur (voor incasso-export).
+  // { iban, bic, creditorId, naam, type?: 'RCUR'|'FRST' }
+  financieel:       jsonb('financieel'),                          // SchoolFinancieel | null
   deletedAt:        timestamp('deleted_at'),
   createdAt:        timestamp('created_at').defaultNow(),
   updatedAt:        timestamp('updated_at').defaultNow(),
@@ -418,11 +425,24 @@ export const schoolMemberships = pgTable('school_memberships', {
   telefoon:       varchar('telefoon', { length: 30 }),
   ervaring:       text('ervaring'),                              // vrije tekst uit onboarding
   noodContact:    varchar('nood_contact', { length: 200 }),      // naam + nummer
+  // ─── FINANCIEEL (lidmaatschap + SEPA) ──────────────────────────
+  // Jaarlijks lidmaatschapsgeld in centen (bv. 7500 = €75,00). null = geen
+  // vaste contributie (bv. instructeur/instructeur-rol).
+  lidmaatschapBedrag: integer('lidmaatschap_bedrag'),
+  // Betaalstatus van de contributie: open (moet nog) | betaald.
+  lidmaatschapStatus: membershipFeeEnum('lidmaatschap_status').default('open'),
+  // SEPA: IBAN van het lid + machtigingskenmerk voor automatische incasso.
+  // iban zonder spaties; machtigingId = school-prefix + volgnummer (NL53ZZZ… style).
+  sepaIban:      varchar('sepa_iban', { length: 34 }),
+  sepaNaam:     varchar('sepa_naam', { length: 70 }),     // ten name van
+  sepaMachtigingId: varchar('sepa_machtiging_id', { length: 35 }), // uniek per lid
+  sepaMachtigingOp: timestamp('sepa_machtiging_op'),        // datum van ondertekening
   deletedAt: timestamp('deleted_at'),
 }, (t) => ({
   uniq:           uniqueIndex('school_memberships_school_user_uniq').on(t.schoolId, t.userId),
   schoolDeletedIdx: index('school_memberships_school_deleted_idx').on(t.schoolId, t.deletedAt),
   schoolStatusIdx:  index('school_memberships_school_status_idx').on(t.schoolId, t.status),
+  schoolFeeIdx:     index('school_memberships_school_fee_idx').on(t.schoolId, t.lidmaatschapStatus),
 }))
 
 // ─── UITNODIGINGEN ───────────────────────────────────────────────────────────
@@ -618,6 +638,13 @@ export const boatRentals = pgTable('boat_rentals', {
   opmerking:  text('opmerking'),    // van de aanvrager
   reactie:    text('reactie'),      // van eigenaar/instructeur
   status:     rentalStatusEnum('status').default('aangevraagd').notNull(),
+  // ── FINANCIEEL ──────────────────────────────────────────────
+  // Bedrag in centen (bv. 4500 = €45,00). Wordt gevuld bij goedkeuring o.b.v.
+  // de school-tarieven (duur × tarief). null = nog niet berekend.
+  bedragCenten: integer('bedrag_centen'),
+  // Wanneer deze verhuur door de huurder is betaald (handmatig gemarkeerd
+  // door staff, of later via iDEAL/incasso). null = open post.
+  betaaldOp:    timestamp('betaald_op'),
   beoordeeldDoor: uuid('beoordeeld_door').references(() => users.id),
   createdAt:  timestamp('created_at').defaultNow(),
   updatedAt:  timestamp('updated_at').defaultNow(),
@@ -947,6 +974,7 @@ export const newsletterCampaigns = pgTable('newsletter_campaigns', {
   kliks:       integer('kliks').default(0),
   geplandVoor: timestamp('gepland_voor'),
   verzondenAt: timestamp('verzonden_at'),
+  template:    varchar('template', { length: 40 }),            // gekozen start-template (id)
   createdAt:   timestamp('created_at').defaultNow(),
   updatedAt:   timestamp('updated_at').defaultNow(),
 }, (t) => ({
