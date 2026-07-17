@@ -156,7 +156,7 @@ export function FinancieelClient({ schoolId, schoolNaam, data }: Props) {
             {busy === 'btw' ? 'Genereren…' : 'BTW-overzicht CSV'}
           </button>
           <Link
-            href={`/school/${schoolId}/dashboard`}
+            href={`/school/${schoolId}/financieel/instellingen`}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-on-surface-variant font-label text-sm hover:text-on-surface transition-colors"
           >
             <span className="material-symbols-outlined text-base" aria-hidden="true">settings</span>

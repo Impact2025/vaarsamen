@@ -120,6 +120,14 @@ export const schoolCreateSchema = z.object({
 
 export const schoolUpdateSchema = schoolCreateSchema.partial().omit({ slug: true }).extend({
   verhuurTarieven: z.any().optional(),
+  // SEPA-crediteur config (opgeslagen in sailingSchools.financieel)
+  financieel: z.object({
+    naam:       z.string().min(2).max(70),
+    iban:       z.string().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/, 'Ongeldige IBAN'),
+    bic:        z.string().regex(/^[A-Z0-9]{8,11}$/, 'Ongeldige BIC').optional().or(z.literal('')),
+    creditorId: z.string().min(3).max(35),
+    type:       z.enum(['RCUR', 'FRST']).default('RCUR'),
+  }).optional(),
 })
 
 // ─── CURSUS ───────────────────────────────────────────────────────────────────
