@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import {
   sailingSchools, schoolMemberships, schoolCourses, schoolFleet,
   schoolLessons, lessonStudents, skillDefinitions, skillAssessments, lessonNotes,
+  boatRentals, boatIssues,
   users,
   newsletterSubscribers, newsletterCampaigns, newsletterSends, crmNotes,
 } from '@/lib/db/schema'
