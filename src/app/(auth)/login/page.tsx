@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { auth } from '@/lib/auth'
 import { cookies } from 'next/headers'
-import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
+import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID, DEMO_ADMIN_ID } from '@/lib/db/seeds/demo'
 
 // Drie demo-rollen: zeilschool, instructeur en zeiler — elk met eigen dashboard
 const [DEMO_EIGENAAR, DEMO_INSTRUCTEUR, DEMO_CURSIST] = DEMO_ACCOUNTS
@@ -11,6 +11,7 @@ const DEMO_ROLES = [
   { userId: DEMO_EIGENAAR.id,    label: 'zeilschool',  icon: DEMO_EIGENAAR.icon,    dest: `/school/${DEMO_SCHOOL_ID}/dashboard` },
   { userId: DEMO_INSTRUCTEUR.id, label: 'instructeur', icon: DEMO_INSTRUCTEUR.icon, dest: `/school/${DEMO_SCHOOL_ID}/dashboard` },
   { userId: DEMO_CURSIST.id,     label: 'zeiler',      icon: DEMO_CURSIST.icon,     dest: '/mijn-vorderingen' },
+  { userId: DEMO_ADMIN_ID,       label: 'platform admin', icon: 'shield_person', dest: '/admin' },
 ]
 
 export default async function LoginPage({
