@@ -960,6 +960,7 @@ export const schoolMessageReplies = pgTable('school_message_replies', {
   messageId:  uuid('message_id').notNull().references(() => schoolMessages.id, { onDelete: 'cascade' }),
   userId:     uuid('user_id').notNull().references(() => users.id),
   bericht:    text('bericht').notNull(),
+  gelezenDoorSchoolOp: timestamp('gelezen_door_school_op'),
   createdAt:  timestamp('created_at').defaultNow(),
 }, (t) => ({
   messageIdx: index('school_message_replies_message_idx').on(t.messageId),

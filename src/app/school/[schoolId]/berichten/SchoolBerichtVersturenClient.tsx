@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 
 type Lid = { membershipId: string; naam: string | null; email: string; role: string; status: string }
 type Verzonden = { id: string; titel: string; bericht: string; createdAt: string | null; reacties: number }
+type Reactie = { id: string; bericht: string; gelezenDoorSchoolOp: string | null; createdAt: string | null }
 
 export function SchoolBerichtVersturenClient({ schoolId, leden }: { schoolId: string; leden: Lid[] }) {
   const router = useRouter()
@@ -16,6 +17,8 @@ export function SchoolBerichtVersturenClient({ schoolId, leden }: { schoolId: st
   const [fout, setFout]          = useState<string | null>(null)
   const [succes, setSucces]      = useState<string | null>(null)
   const [verzonden, setVerzonden] = useState<Verzonden[]>([])
+  const [openId, setOpenId]      = useState<string | null>(null)
+  const [reacties, setReacties]  = useState<Record<string, Reactie[]>>({})
 
   async function laadVerzonden() {
     try {
@@ -60,6 +63,27 @@ export function SchoolBerichtVersturenClient({ schoolId, leden }: { schoolId: st
       setFout('Netwerkfout. Probeer het opnieuw.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function openBericht(id: string) {
+    setOpenId(id)
+    if (!reacties[id]) {
+      const res = await fetch(`/api/school/${schoolId}/berichten/${id}`)
+      if (res.ok) {
+        const d = await res.json()
+        setReacties(prev => ({ ...prev, [id]: d.reacties ?? [] }))
+      }
+    }
+  }
+
+  async function markeerGelezen(berichtId: string, reactieId: string) {
+    const res = await fetch(`/api/school/${schoolId}/berichten/${berichtId}/reactie/${reactieId}`, { method: 'PATCH' })
+    if (res.ok) {
+      setReacties(prev => ({
+        ...prev,
+        [berichtId]: (prev[berichtId] ?? []).map(r => r.id === reactieId ? { ...r, gelezenDoorSchoolOp: new Date().toISOString() } : r),
+      }))
     }
   }
 
@@ -119,14 +143,37 @@ export function SchoolBerichtVersturenClient({ schoolId, leden }: { schoolId: st
         ) : (
           <ul className="space-y-2">
             {verzonden.map(v => (
-              <li key={v.id} className="rounded-2xl glass-card border border-white/5 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-label font-bold text-on-surface">{v.titel}</span>
-                  <span className="font-label text-[10px] rounded-full bg-primary/10 px-2 py-0.5 text-primary">
-                    {v.reacties} {v.reacties === 1 ? 'reactie' : 'reacties'}
-                  </span>
-                </div>
-                <p className="font-body text-xs text-on-surface-variant mt-1">{v.bericht}</p>
+              <li key={v.id} className="rounded-2xl glass-card border border-white/5">
+                <button onClick={() => openBericht(v.id)} className="w-full text-left p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-label font-bold text-on-surface">{v.titel}</span>
+                    <span className="font-label text-[10px] rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                      {v.reacties} {v.reacties === 1 ? 'reactie' : 'reacties'}
+                    </span>
+                  </div>
+                  <p className="font-body text-xs text-on-surface-variant mt-1">{v.bericht}</p>
+                </button>
+
+                {openId === v.id && (reacties[v.id] ?? []).length > 0 && (
+                  <div className="px-4 pb-4 space-y-2">
+                    {(reacties[v.id] ?? []).map(r => (
+                      <div key={r.id} className="rounded-xl bg-surface-container-high/60 p-3">
+                        <p className="font-body text-sm text-on-surface">{r.bericht}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="font-label text-[10px] text-on-surface-variant">
+                            {r.gelezenDoorSchoolOp ? 'Gezien door school' : 'Nog niet gelezen'}
+                          </span>
+                          {!r.gelezenDoorSchoolOp && (
+                            <button onClick={() => markeerGelezen(v.id, r.id)}
+                              className="font-label text-[10px] text-primary underline">
+                              Markeer als gelezen
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ul>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow } from 'date-fns'
 import { nl } from 'date-fns/locale'
@@ -10,7 +10,10 @@ type Bericht = {
   titel: string; bericht: string; gelezenOp: Date | null; createdAt: Date | null
 }
 
-type Reactie = { id: string; bericht: string; createdAt: Date | null; vanNaam: string | null }
+type Reactie = {
+  id: string; bericht: string; createdAt: Date | null; vanNaam: string | null
+  gelezenDoorSchoolOp: Date | null
+}
 
 const ROL_LABEL: Record<string, string> = {
   eigenaar: 'Eigenaar', instructeur: 'Instructeur', cursist: 'Cursist', lid: 'Lid', klusser: 'Klusser',
@@ -22,6 +25,39 @@ export function SchoolBerichtenClient({ initialBerichten }: { initialBerichten: 
   const [replies, setReplies]   = useState<Record<string, Reactie[]>>({})
   const [draft, setDraft]       = useState('')
   const [busy, setBusy]         = useState(false)
+
+  // Sorteer: ongelezen eerst, daarna nieuwste bovenaan. Groepeer per school.
+  const gesorteerd = useMemo(() => {
+    return [...berichten].sort((a, b) => {
+      const au = a.gelezenOp ? 1 : 0
+      const bu = b.gelezenOp ? 1 : 0
+      if (au !== bu) return au - bu
+      const at = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      return bt - at
+    })
+  }, [berichten])
+
+  const meerdereScholen = useMemo(
+    () => new Set(berichten.map(b => b.schoolId)).size > 1,
+    [berichten],
+  )
+
+  // Voeg tussenkopjes toe per school-groep (alleen bij meerdere scholen).
+  const metHeaders = useMemo(() => {
+    if (!meerdereScholen) return gesorteerd.map(b => ({ bericht: b, header: null as string | null }))
+    const out: { bericht: Bericht; header: string | null }[] = []
+    let lastSchool: string | null = null
+    for (const b of gesorteerd) {
+      if (b.schoolId !== lastSchool) {
+        out.push({ bericht: b, header: b.schoolNaam })
+        lastSchool = b.schoolId
+      } else {
+        out.push({ bericht: b, header: null })
+      }
+    }
+    return out
+  }, [gesorteerd, meerdereScholen])
 
   // Markeer als gelezen bij openen.
   useEffect(() => {
@@ -55,7 +91,7 @@ export function SchoolBerichtenClient({ initialBerichten }: { initialBerichten: 
         const data = await res.json()
         setReplies(prev => ({
           ...prev,
-          [berichtId]: [...(prev[berichtId] ?? []), { id: data.id, bericht: draft, createdAt: new Date(), vanNaam: 'Jij' }],
+          [berichtId]: [...(prev[berichtId] ?? []), { id: data.id, bericht: draft, createdAt: new Date(), vanNaam: 'Jij', gelezenDoorSchoolOp: null }],
         }))
         setDraft('')
       }
@@ -96,79 +132,95 @@ export function SchoolBerichtenClient({ initialBerichten }: { initialBerichten: 
     <div className="px-4 pt-6 pb-28">
       <header className="mb-6">
         <h1 className="font-headline font-black text-2xl text-on-surface">Berichten van je school</h1>
-        <p className="font-body text-sm text-on-surface-variant mt-1">{berichten.length} berichten</p>
+        <p className="font-body text-sm text-on-surface-variant mt-1">
+          {berichten.length} berichten · {berichten.filter(b => !b.gelezenOp).length} ongelezen
+        </p>
       </header>
 
       <ul className="space-y-3">
-        {berichten.map((b, i) => (
-          <motion.li
-            key={b.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: i * 0.05, ease: 'easeOut' }}
-          >
-            <button
-              onClick={() => openBericht(b)}
-              className="w-full text-left rounded-2xl glass-card border border-white/5 p-4
-                         hover:border-primary/20 transition-colors focus:outline-none
-                         focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-label font-bold text-on-surface">{b.titel}</span>
-                {!b.gelezenOp && (
-                  <span className="w-2.5 h-2.5 rounded-full gradient-primary flex-shrink-0" aria-label="Ongelezen" />
-                )}
-              </div>
-              <p className="font-body text-sm text-on-surface mt-2">{b.bericht}</p>
-              <p className="font-label text-[10px] text-on-surface-variant mt-3 uppercase tracking-wider">
-                {b.schoolNaam} · {ROL_LABEL[b.fromRole] ?? b.fromRole}
-                {b.createdAt ? ` · ${formatDistanceToNow(new Date(b.createdAt), { addSuffix: true, locale: nl })}` : ''}
+        {metHeaders.map(({ bericht: b, header }) => (
+          <div key={b.id}>
+            {header && (
+              <p className="font-label text-[11px] uppercase tracking-widest text-on-surface-variant mt-2 mb-1">
+                {header}
               </p>
-            </button>
+            )}
+            <motion.li
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+            >
+              <button
+                onClick={() => openBericht(b)}
+                className="w-full text-left rounded-2xl glass-card border border-white/5 p-4
+                           hover:border-primary/20 transition-colors focus:outline-none
+                           focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-label font-bold text-on-surface">{b.titel}</span>
+                  {!b.gelezenOp && (
+                    <span className="w-2.5 h-2.5 rounded-full gradient-primary flex-shrink-0" aria-label="Ongelezen" />
+                  )}
+                </div>
+                <p className="font-body text-sm text-on-surface mt-2">{b.bericht}</p>
+                <p className="font-label text-[10px] text-on-surface-variant mt-3 uppercase tracking-wider">
+                  {b.schoolNaam} · {ROL_LABEL[b.fromRole] ?? b.fromRole}
+                  {b.createdAt ? ` · ${formatDistanceToNow(new Date(b.createdAt), { addSuffix: true, locale: nl })}` : ''}
+                </p>
+              </button>
 
-            <AnimatePresence>
-              {openId === b.id && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
-                >
-                  <div className="mt-2 rounded-2xl bg-surface-container-high/60 p-4 space-y-3">
-                    {(replies[b.id] ?? []).map(r => (
-                      <div key={r.id} className="rounded-xl bg-primary/10 p-3">
-                        <p className="font-body text-sm text-on-surface">{r.bericht}</p>
-                        <p className="font-label text-[10px] text-on-surface-variant mt-1 uppercase">
-                          {r.vanNaam ?? 'Jij'}
-                          {r.createdAt ? ` · ${formatDistanceToNow(new Date(r.createdAt), { addSuffix: true, locale: nl })}` : ''}
-                        </p>
+              <AnimatePresence>
+                {openId === b.id && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2 rounded-2xl bg-surface-container-high/60 p-4 space-y-3">
+                      {(replies[b.id] ?? []).map(r => (
+                        <div key={r.id} className="rounded-xl bg-primary/10 p-3">
+                          <p className="font-body text-sm text-on-surface">{r.bericht}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="font-label text-[10px] text-on-surface-variant uppercase">
+                              {r.vanNaam ?? 'Jij'}
+                              {r.createdAt ? ` · ${formatDistanceToNow(new Date(r.createdAt), { addSuffix: true, locale: nl })}` : ''}
+                            </p>
+                            {r.gelezenDoorSchoolOp && (
+                              <span className="font-label text-[10px] text-green-500 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs" aria-hidden="true">done_all</span>
+                                school gezien
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="flex gap-2 pt-1">
+                        <input
+                          value={draft}
+                          onChange={e => setDraft(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') stuurReactie(b.id) }}
+                          placeholder="Reageer naar je zeilschool…"
+                          className="flex-1 rounded-full bg-surface-container px-4 py-2 text-sm text-on-surface
+                                     outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        />
+                        <button
+                          onClick={() => stuurReactie(b.id)}
+                          disabled={busy || !draft.trim()}
+                          className="px-4 rounded-full gradient-primary text-on-primary font-label text-sm font-bold
+                                     disabled:opacity-50 active:scale-95 transition-all"
+                        >
+                          Verstuur
+                        </button>
                       </div>
-                    ))}
-
-                    <div className="flex gap-2 pt-1">
-                      <input
-                        value={draft}
-                        onChange={e => setDraft(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') stuurReactie(b.id) }}
-                        placeholder="Reageer naar je zeilschool…"
-                        className="flex-1 rounded-full bg-surface-container px-4 py-2 text-sm text-on-surface
-                                   outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      />
-                      <button
-                        onClick={() => stuurReactie(b.id)}
-                        disabled={busy || !draft.trim()}
-                        className="px-4 rounded-full gradient-primary text-on-primary font-label text-sm font-bold
-                                   disabled:opacity-50 active:scale-95 transition-all"
-                      >
-                        Verstuur
-                      </button>
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.li>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.li>
+          </div>
         ))}
       </ul>
     </div>

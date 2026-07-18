@@ -2,6 +2,8 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { boatRentals } from '@/lib/db/schema'
 import { getSchoolMembership } from '@/lib/db/queries/school'
+import { getProfileByUserId } from '@/lib/db/queries/profiles'
+import { sendPushToProfile } from '@/lib/push'
 import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 
@@ -60,6 +62,19 @@ export async function PATCH(
       updatedAt:     new Date(),
     })
     .where(eq(boatRentals.id, boekingId))
+
+  // Push naar de huurder bij goedkeuring/afwijzing (best-effort).
+  if (isStaff && (status === 'goedgekeurd' || status === 'afgewezen')) {
+    const profile = await getProfileByUserId(boeking.userId)
+    if (profile) {
+      const label = status === 'goedgekeurd' ? 'goedgekeurd' : 'afgewezen'
+      await sendPushToProfile(profile.id, {
+        title: `Bootreservering ${label}`,
+        body:  reactie ? `${reactie}` : `Je reservering is ${label}.`,
+        url:   '/boeken',
+      })
+    }
+  }
 
   return Response.json({ ok: true, status })
 }

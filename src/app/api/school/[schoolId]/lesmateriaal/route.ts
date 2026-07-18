@@ -58,63 +58,71 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ schoolId: string }> },
 ) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { schoolId } = await params
-  const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership || !BEHEER_ROLES.includes(membership.role as any)) {
-    return NextResponse.json({ error: 'Alleen instructeurs en eigenaren mogen lesmateriaal toevoegen' }, { status: 403 })
-  }
-
-  const form = await req.formData()
-  const file = form.get('bestand')
-  const titel = (form.get('titel') as string)?.trim()
-  const beschrijving = (form.get('beschrijving') as string)?.trim() || null
-  const cwoNiveau = (form.get('cwoNiveau') as string) || 'geen'
-  const categorie = (form.get('categorie') as string) || 'theorie'
-
-  if (!(file instanceof File) || !file.size) {
-    return NextResponse.json({ error: 'Selecteer een bestand' }, { status: 400 })
-  }
-  if (!titel) {
-    return NextResponse.json({ error: 'Titel is verplicht' }, { status: 400 })
-  }
-  if (file.size > 25 * 1024 * 1024) {
-    return NextResponse.json({ error: 'Bestand is groter dan 25 MB' }, { status: 400 })
-  }
-
-  // School-prefix in het pad zodat bestanden per school geïsoleerd blijven.
-  const ext = (file.name.split('.').pop() || 'bin').slice(0, 8)
-  const safeName = titel.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
-  const pathname = `lesmateriaal/${schoolId}/${Date.now()}-${safeName}.${ext}`
-
-  const blob = await put(pathname, file, {
-    access: 'public',
-    contentType: file.type || 'application/octet-stream',
-    addRandomSuffix: false,
-  })
-
   try {
-    await ensureTable()
-  } catch { /* bestaat al */ }
+    const session = await auth()
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { schoolId } = await params
+    const membership = await getSchoolMembership(schoolId, session.user.id)
+    if (!membership || !BEHEER_ROLES.includes(membership.role as any)) {
+      return NextResponse.json({ error: 'Alleen instructeurs en eigenaren mogen lesmateriaal toevoegen' }, { status: 403 })
+    }
 
-  const [row] = await db
-    .insert(lessonMaterials)
-    .values({
-      schoolId,
-      titel,
-      beschrijving,
-      bestandsNaam: file.name,
-      bestandsUrl: blob.url,
-      bestandstype: file.type || null,
-      bestandsGrootte: file.size,
-      cwoNiveau: cwoNiveau as any,
-      categorie: categorie as any,
-      uploadedById: session.user.id,
+    const form = await req.formData()
+    const file = form.get('bestand')
+    const titel = (form.get('titel') as string)?.trim()
+    const beschrijving = (form.get('beschrijving') as string)?.trim() || null
+    const cwoNiveau = (form.get('cwoNiveau') as string) || 'geen'
+    const categorie = (form.get('categorie') as string) || 'theorie'
+
+    if (!(file instanceof File) || !file.size) {
+      return NextResponse.json({ error: 'Selecteer een bestand' }, { status: 400 })
+    }
+    if (!titel) {
+      return NextResponse.json({ error: 'Titel is verplicht' }, { status: 400 })
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Bestand is groter dan 25 MB' }, { status: 400 })
+    }
+
+    // School-prefix in het pad zodat bestanden per school geïsoleerd blijven.
+    const ext = (file.name.split('.').pop() || 'bin').slice(0, 8)
+    const safeName = titel.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
+    const pathname = `lesmateriaal/${schoolId}/${Date.now()}-${safeName}.${ext}`
+
+    console.error('[lesmateriaal] put start', { pathname, size: file.size, type: file.type })
+    const blob = await put(pathname, file, {
+      access: 'public',
+      contentType: file.type || 'application/octet-stream',
+      addRandomSuffix: false,
     })
-    .returning()
+    console.error('[lesmateriaal] put done', { url: blob.url.slice(0, 60) })
 
-  return NextResponse.json({ materiaal: row }, { status: 201 })
+    try {
+      await ensureTable()
+    } catch { /* bestaat al */ }
+
+    const [row] = await db
+      .insert(lessonMaterials)
+      .values({
+        schoolId,
+        titel,
+        beschrijving,
+        bestandsNaam: file.name,
+        bestandsUrl: blob.url,
+        bestandstype: file.type || null,
+        bestandsGrootte: file.size,
+        cwoNiveau: cwoNiveau as any,
+        categorie: categorie as any,
+        uploadedById: session.user.id,
+      })
+      .returning()
+
+    console.error('[lesmateriaal] insert done', { id: row.id })
+    return NextResponse.json({ materiaal: row }, { status: 201 })
+  } catch (err: any) {
+    console.error('[lesmateriaal] POST ERROR', err?.message, err?.stack?.slice(0, 400))
+    return NextResponse.json({ error: 'Serverfout bij upload', detail: String(err?.message ?? err) }, { status: 500 })
+  }
 }
 
 export async function DELETE(

@@ -976,6 +976,7 @@ export async function getSchoolBerichtMetReplies(
       id:        schoolMessageReplies.id,
       bericht:   schoolMessageReplies.bericht,
       createdAt: schoolMessageReplies.createdAt,
+      gelezenDoorSchoolOp: schoolMessageReplies.gelezenDoorSchoolOp,
       vanNaam:   users.name,
     })
     .from(schoolMessageReplies)
@@ -1010,4 +1011,24 @@ export async function voegSchoolBerichtReactieToe(
     .values({ messageId: berichtId, userId, bericht })
     .returning({ id: schoolMessageReplies.id })
   return nieuw ?? null
+}
+
+/**
+ * Staff (eigenaar/instructeur) markeert een zeiler-reactie als gelezen door de
+ * school → zeiler ziet een vinkje ("school heeft dit gezien").
+ */
+export async function markeerSchoolReactieGelezen(reactieId: string, schoolId: string): Promise<boolean> {
+  const [updated] = await db
+    .update(schoolMessageReplies)
+    .set({ gelezenDoorSchoolOp: new Date() })
+    .where(
+      and(
+        eq(schoolMessageReplies.id, reactieId),
+        eq(schoolMessages.schoolId, schoolId),
+        isNull(schoolMessages.deletedAt),
+      ),
+    )
+    .from(schoolMessages)
+    .returning({ id: schoolMessageReplies.id })
+  return !!updated
 }
