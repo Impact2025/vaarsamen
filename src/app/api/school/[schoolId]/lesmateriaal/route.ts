@@ -67,26 +67,61 @@ export async function POST(
       return NextResponse.json({ error: 'Alleen instructeurs en eigenaren mogen lesmateriaal toevoegen' }, { status: 403 })
     }
 
-    const form = await req.formData()
-    const file = form.get('bestand')
-    const titel = (form.get('titel') as string)?.trim()
-    const beschrijving = (form.get('beschrijving') as string)?.trim() || null
-    const cwoNiveau = (form.get('cwoNiveau') as string) || 'geen'
-    const categorie = (form.get('categorie') as string) || 'theorie'
+    const body = await req.json()
+    const titel = (body.titel as string)?.trim()
+    const beschrijving = (body.beschrijving as string)?.trim() || null
+    const cwoNiveau = (body.cwoNiveau as string) || 'geen'
+    const categorie = (body.categorie as string) || 'theorie'
+    const bestandsNaam = (body.bestandsNaam as string) || 'bestand'
+    const bestandstype = (body.bestandstype as string) || 'application/octet-stream'
+    const dataB64 = body.data as string // base64 van de bestandsinhoud
+    const bestandsGrootte = Number(body.bestandsGrootte) || 0
 
-    if (!(file instanceof File) || !file.size) {
-      return NextResponse.json({ error: 'Selecteer een bestand' }, { status: 400 })
-    }
     if (!titel) {
       return NextResponse.json({ error: 'Titel is verplicht' }, { status: 400 })
     }
-    if (file.size > 25 * 1024 * 1024) {
+    if (!dataB64 || bestandsGrootte === 0) {
+      return NextResponse.json({ error: 'Bestand ontbreekt' }, { status: 400 })
+    }
+    if (bestandsGrootte > 25 * 1024 * 1024) {
       return NextResponse.json({ error: 'Bestand is groter dan 25 MB' }, { status: 400 })
     }
 
-    // DIAGNOSE: direct return zonder put/insert om crash-oorzaak te isoleren.
-    console.error('[lesmateriaal] DIAGNOSE formData ok', { name: file.name, size: file.size, type: file.type })
-    return NextResponse.json({ diagnose: 'ok', name: file.name, size: file.size }, { status: 200 })
+    const buffer = Buffer.from(dataB64, 'base64')
+    const ext = (bestandsNaam.split('.').pop() || 'bin').slice(0, 8)
+    const safeName = titel.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
+    const pathname = `lesmateriaal/${schoolId}/${Date.now()}-${safeName}.${ext}`
+
+    console.error('[lesmateriaal] put start', { pathname, size: buffer.length, type: bestandstype })
+    const blob = await put(pathname, buffer, {
+      access: 'public',
+      contentType: bestandstype,
+      addRandomSuffix: false,
+    })
+    console.error('[lesmateriaal] put done', { url: blob.url.slice(0, 60) })
+
+    try {
+      await ensureTable()
+    } catch { /* bestaat al */ }
+
+    const [row] = await db
+      .insert(lessonMaterials)
+      .values({
+        schoolId,
+        titel,
+        beschrijving,
+        bestandsNaam,
+        bestandsUrl: blob.url,
+        bestandstype,
+        bestandsGrootte,
+        cwoNiveau: cwoNiveau as any,
+        categorie: categorie as any,
+        uploadedById: session.user.id,
+      })
+      .returning()
+
+    console.error('[lesmateriaal] insert done', { id: row.id })
+    return NextResponse.json({ materiaal: row }, { status: 201 })
   } catch (err: any) {
     console.error('[lesmateriaal] POST ERROR', err?.message, err?.stack?.slice(0, 400))
     return NextResponse.json({ error: 'Serverfout bij upload', detail: String(err?.message ?? err) }, { status: 500 })

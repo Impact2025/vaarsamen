@@ -1695,20 +1695,32 @@ function LesmateriaalTab({
     e.preventDefault()
     if (!bestand || !titel.trim()) { setError('Titel en bestand zijn verplicht'); return }
     setSaving(true); setError('')
-    const fd = new FormData()
-    fd.append('bestand', bestand)
-    fd.append('titel', titel.trim())
-    fd.append('beschrijving', beschrijving.trim())
-    fd.append('cwoNiveau', cwoNiveau)
-    fd.append('categorie', categorie)
-    const res = await fetch(`/api/school/${schoolId}/lesmateriaal`, { method: 'POST', body: fd })
-    if (res.ok) {
-      setShowForm(false); setTitel(''); setBeschrijving(''); setBestand(null); setCwoNiveau('geen'); setCategorie('theorie')
-      toast('Lesmateriaal toegevoegd')
-      laad()
-    } else {
-      const d = await res.json().catch(() => ({}))
-      setError(d.error ?? 'Upload mislukt')
+    try {
+      const buf = await bestand.arrayBuffer()
+      const b64 = Buffer.from(buf).toString('base64')
+      const res = await fetch(`/api/school/${schoolId}/lesmateriaal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titel: titel.trim(),
+          beschrijving: beschrijving.trim(),
+          cwoNiveau, categorie,
+          bestandsNaam: bestand.name,
+          bestandstype: bestand.type || 'application/octet-stream',
+          bestandsGrootte: bestand.size,
+          data: b64,
+        }),
+      })
+      if (res.ok) {
+        setShowForm(false); setTitel(''); setBeschrijving(''); setBestand(null); setCwoNiveau('geen'); setCategorie('theorie')
+        toast('Lesmateriaal toegevoegd')
+        laad()
+      } else {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error ?? d.detail ?? 'Upload mislukt')
+      }
+    } catch {
+      setError('Upload mislukt (netwerk)')
     }
     setSaving(false)
   }
