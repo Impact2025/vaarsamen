@@ -83,8 +83,8 @@ export default async function DemoPage() {
             'use server'
             try {
               await signIn('demo-user', {
-                userId:     DEMO_ACCOUNTS[1].id,
-                redirectTo: `/school/${DEMO_SCHOOL_ID}/cursist/${DEMO_CURSIST_LISA}/vorderingen`,
+                userId:     DEMO_CURSIST_LISA,
+                redirectTo: '/mijn-vorderingen',
               })
             } catch (e: unknown) {
               if (isRedirectError(e)) throw e

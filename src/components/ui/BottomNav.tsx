@@ -6,10 +6,11 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 
 const NAV_ITEMS = [
-  { href: '/ontdekken', icon: 'explore',        label: 'Ontdekken' },
-  { href: '/berichten', icon: 'chat',            label: 'Berichten' },
-  { href: '/tochten',   icon: 'directions_boat', label: 'Tochten'   },
-  { href: '/profiel',   icon: 'account_circle',  label: 'Profiel'   },
+  { href: '/ontdekken',         icon: 'explore',         label: 'Ontdekken' },
+  { href: '/mijn-vorderingen',  icon: 'school',          label: 'Vorderingen' },
+  { href: '/tochten',           icon: 'directions_boat', label: 'Tochten'   },
+  { href: '/berichten',         icon: 'chat',            label: 'Berichten' },
+  { href: '/profiel',           icon: 'account_circle',  label: 'Profiel'   },
 ] as const
 
 const TOCHTEN_KEY   = 'tochten_last_visit'
