@@ -89,8 +89,10 @@ export async function POST(
     const safeName = titel.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
     const pathname = `lesmateriaal/${schoolId}/${Date.now()}-${safeName}.${ext}`
 
-    console.error('[lesmateriaal] put start', { pathname, size: file.size, type: file.type })
-    const blob = await put(pathname, file, {
+    // Lees de file als Buffer (betrouwbaarder op serverless dan File-stream).
+    const buffer = Buffer.from(await file.arrayBuffer())
+    console.error('[lesmateriaal] put start', { pathname, size: buffer.length, type: file.type })
+    const blob = await put(pathname, buffer, {
       access: 'public',
       contentType: file.type || 'application/octet-stream',
       addRandomSuffix: false,
