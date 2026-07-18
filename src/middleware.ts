@@ -5,7 +5,6 @@ import { NextResponse } from 'next/server'
 const PUBLIC_API_ROUTES = [
   '/api/auth',
   '/api/pusher/auth', // Pusher private channel authenticatie
-  '/api/migrate-financieel', // eenmalige prod-DB migratie (eigen token-check)
 ]
 
 export default auth((req) => {
