@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { format, addDays, startOfWeek, parseISO, isToday, isPast, addWeeks, subWeeks } from 'date-fns'
+import { format, addDays, startOfWeek, parseISO, isToday, isPast, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, isSameMonth, isSameDay, subDays } from 'date-fns'
 import { nl } from 'date-fns/locale'
 
 type Boot = { id: string; bootNummer: string; naam: string | null }
@@ -45,7 +45,9 @@ interface Props {
 }
 
 export function VerhuurClient({ schoolId, schoolNaam, vloot, isStaff, tarieven }: Props) {
-  const [weekStart, setWeekStart]   = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
+  const [view, setView]           = useState<'week' | 'maand'>('week')
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
+  const [maandStart, setMaandStart] = useState(() => startOfMonth(new Date()))
   const [boekingen, setBoekingen]   = useState<Boeking[]>([])
   const [loading, setLoading]       = useState(true)
   const [showForm, setShowForm]     = useState(false)
@@ -53,8 +55,12 @@ export function VerhuurClient({ schoolId, schoolNaam, vloot, isStaff, tarieven }
   const [selectedBootId, setSelectedBootId] = useState(vloot[0]?.id ?? '')
 
   const weekDagen = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-  const van = format(weekStart, 'yyyy-MM-dd')
-  const tot = format(addDays(weekStart, 6), 'yyyy-MM-dd')
+  const van = view === 'week'
+    ? format(weekStart, 'yyyy-MM-dd')
+    : format(startOfMonth(maandStart), 'yyyy-MM-dd')
+  const tot = view === 'week'
+    ? format(addDays(weekStart, 6), 'yyyy-MM-dd')
+    : format(endOfMonth(maandStart), 'yyyy-MM-dd')
 
   const laadBoekingen = useCallback(async () => {
     setLoading(true)
@@ -117,102 +123,138 @@ export function VerhuurClient({ schoolId, schoolNaam, vloot, isStaff, tarieven }
 
         {vloot.length > 0 && (
           <>
-            {/* Week navigatie */}
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setWeekStart(w => subWeeks(w, 1))}
-                className="p-2 rounded-xl bg-surface-container border border-white/5 text-on-surface-variant hover:text-on-surface transition-colors"
-                aria-label="Vorige week"
-              >
-                <span className="material-symbols-outlined text-xl" aria-hidden="true">chevron_left</span>
-              </button>
-              <div className="text-center">
-                <p className="font-label font-semibold text-on-surface text-sm">
-                  {format(weekStart, 'd MMM', { locale: nl })} – {format(addDays(weekStart, 6), 'd MMM yyyy', { locale: nl })}
+            {/* Weergave-toggle + navigatie */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-1 bg-surface-container rounded-xl p-1 border border-white/5">
+                <button
+                  onClick={() => setView('week')}
+                  className={['px-3 py-1.5 rounded-lg font-label text-sm font-semibold transition-colors', view === 'week' ? 'bg-primary/15 text-primary' : 'text-on-surface-variant hover:text-on-surface'].join(' ')}
+                >
+                  Week
+                </button>
+                <button
+                  onClick={() => setView('maand')}
+                  className={['px-3 py-1.5 rounded-lg font-label text-sm font-semibold transition-colors', view === 'maand' ? 'bg-primary/15 text-primary' : 'text-on-surface-variant hover:text-on-surface'].join(' ')}
+                >
+                  Maand
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => view === 'week' ? setWeekStart(w => subWeeks(w, 1)) : setMaandStart(m => subMonths(m, 1))}
+                  className="p-2 rounded-xl bg-surface-container border border-white/5 text-on-surface-variant hover:text-on-surface transition-colors"
+                  aria-label="Vorige periode"
+                >
+                  <span className="material-symbols-outlined text-xl" aria-hidden="true">chevron_left</span>
+                </button>
+                <button
+                  onClick={() => { setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 })); setMaandStart(startOfMonth(new Date())) }}
+                  className="px-3 py-2 rounded-xl bg-surface-container border border-white/5 font-label text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+                >
+                  Vandaag
+                </button>
+                <button
+                  onClick={() => view === 'week' ? setWeekStart(w => addWeeks(w, 1)) : setMaandStart(m => addMonths(m, 1))}
+                  className="p-2 rounded-xl bg-surface-container border border-white/5 text-on-surface-variant hover:text-on-surface transition-colors"
+                  aria-label="Volgende periode"
+                >
+                  <span className="material-symbols-outlined text-xl" aria-hidden="true">chevron_right</span>
+                </button>
+                <p className="ml-2 font-label font-semibold text-on-surface text-sm min-w-[7rem] text-center">
+                  {view === 'week'
+                    ? `${format(weekStart, 'd MMM', { locale: nl })} – ${format(addDays(weekStart, 6), 'd MMM yyyy', { locale: nl })}`
+                    : format(maandStart, 'MMMM yyyy', { locale: nl })}
                 </p>
               </div>
-              <button
-                onClick={() => setWeekStart(w => addWeeks(w, 1))}
-                className="p-2 rounded-xl bg-surface-container border border-white/5 text-on-surface-variant hover:text-on-surface transition-colors"
-                aria-label="Volgende week"
-              >
-                <span className="material-symbols-outlined text-xl" aria-hidden="true">chevron_right</span>
-              </button>
             </div>
 
-            {/* Kalender grid: boten × dagen */}
-            <div className="bg-surface-container rounded-2xl border border-white/5 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs min-w-[600px]">
-                  <thead>
-                    <tr className="border-b border-white/5">
-                      <th className="text-left px-3 py-2 font-label text-on-surface-variant w-24">Boot</th>
-                      {weekDagen.map(dag => (
-                        <th key={dag.toISOString()} className={[
-                          'px-2 py-2 font-label text-center',
-                          isToday(dag) ? 'text-primary font-bold' : 'text-on-surface-variant',
-                        ].join(' ')}>
-                          <div>{format(dag, 'EEE', { locale: nl })}</div>
-                          <div className={`text-[10px] ${isToday(dag) ? 'text-primary' : 'text-on-surface-variant/60'}`}>
-                            {format(dag, 'd/M')}
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vloot.map(boot => (
-                      <tr key={boot.id} className="border-b border-white/5 last:border-0">
-                        <td className="px-3 py-2">
-                          <p className="font-label font-semibold text-on-surface">#{boot.bootNummer}</p>
-                          {boot.naam && <p className="font-label text-[10px] text-on-surface-variant">{boot.naam}</p>}
-                        </td>
-                        {weekDagen.map(dag => {
-                          const dagStr = format(dag, 'yyyy-MM-dd')
-                          const dagBoekingen = boekingen.filter(b => b.bootId === boot.id && b.datum === dagStr && b.status !== 'afgewezen' && b.status !== 'geannuleerd')
-                          const isGeboekt = dagBoekingen.some(b => b.status === 'goedgekeurd')
-                          const isPastDag = isPast(dag) && !isToday(dag)
-
-                          return (
-                            <td key={dag.toISOString()} className="px-1 py-1 text-center">
-                              {dagBoekingen.length > 0 ? (
-                                <div className="space-y-0.5">
-                                  {dagBoekingen.map(b => (
-                                    <div
-                                      key={b.id}
-                                      className={[
-                                        'rounded px-1 py-0.5 text-[10px] font-medium leading-tight',
-                                        b.status === 'goedgekeurd'  ? 'bg-green-400/20 text-green-300' :
-                                        b.status === 'aangevraagd' ? 'bg-amber-400/20 text-amber-300' : '',
-                                      ].join(' ')}
-                                    >
-                                      {b.startTijd}–{b.eindTijd}
-                                      {isStaff && b.aanvrager && (
-                                        <span className="block opacity-70">{b.aanvrager.name ?? b.aanvrager.email.split('@')[0]}</span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : !isPastDag && !isGeboekt ? (
-                                <button
-                                  onClick={() => openAanvraag(dagStr, boot.id)}
-                                  className="w-full h-7 rounded border border-dashed border-white/10 hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center justify-center"
-                                  aria-label={`Boot ${boot.bootNummer} aanvragen op ${format(dag, 'd MMM', { locale: nl })}`}
-                                >
-                                  <span className="material-symbols-outlined text-[12px] text-on-surface-variant/30 hover:text-primary/50" aria-hidden="true">add</span>
-                                </button>
-                              ) : (
-                                <span className="text-on-surface-variant/20">–</span>
-                              )}
-                            </td>
-                          )
-                        })}
+            {/* WEEK-GRID */}
+            {view === 'week' && (
+              <div className="bg-surface-container rounded-2xl border border-white/5 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs min-w-[600px]">
+                    <thead>
+                      <tr className="border-b border-white/5">
+                        <th className="text-left px-3 py-2 font-label text-on-surface-variant w-24">Boot</th>
+                        {weekDagen.map(dag => (
+                          <th key={dag.toISOString()} className={[
+                            'px-2 py-2 font-label text-center',
+                            isToday(dag) ? 'text-primary font-bold' : 'text-on-surface-variant',
+                          ].join(' ')}>
+                            <div>{format(dag, 'EEE', { locale: nl })}</div>
+                            <div className={`text-[10px] ${isToday(dag) ? 'text-primary' : 'text-on-surface-variant/60'}`}>
+                              {format(dag, 'd/M')}
+                            </div>
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {vloot.map(boot => (
+                        <tr key={boot.id} className="border-b border-white/5 last:border-0">
+                          <td className="px-3 py-2">
+                            <p className="font-label font-semibold text-on-surface">#{boot.bootNummer}</p>
+                            {boot.naam && <p className="font-label text-[10px] text-on-surface-variant">{boot.naam}</p>}
+                          </td>
+                          {weekDagen.map(dag => {
+                            const dagStr = format(dag, 'yyyy-MM-dd')
+                            const dagBoekingen = boekingen.filter(b => b.bootId === boot.id && b.datum === dagStr && b.status !== 'afgewezen' && b.status !== 'geannuleerd')
+                            const isGeboekt = dagBoekingen.some(b => b.status === 'goedgekeurd')
+                            const isPastDag = isPast(dag) && !isToday(dag)
+
+                            return (
+                              <td key={dag.toISOString()} className="px-1 py-1 text-center">
+                                {dagBoekingen.length > 0 ? (
+                                  <div className="space-y-0.5">
+                                    {dagBoekingen.map(b => (
+                                      <div
+                                        key={b.id}
+                                        className={[
+                                          'rounded px-1 py-0.5 text-[10px] font-medium leading-tight',
+                                          b.status === 'goedgekeurd'  ? 'bg-green-400/20 text-green-300' :
+                                          b.status === 'aangevraagd' ? 'bg-amber-400/20 text-amber-300' : '',
+                                        ].join(' ')}
+                                      >
+                                        {b.startTijd}–{b.eindTijd}
+                                        {isStaff && b.aanvrager && (
+                                          <span className="block opacity-70">{b.aanvrager.name ?? b.aanvrager.email.split('@')[0]}</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : !isPastDag && !isGeboekt ? (
+                                  <button
+                                    onClick={() => openAanvraag(dagStr, boot.id)}
+                                    className="w-full h-7 rounded border border-dashed border-white/10 hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center justify-center"
+                                    aria-label={`Boot ${boot.bootNummer} aanvragen op ${format(dag, 'd MMM', { locale: nl })}`}
+                                  >
+                                    <span className="material-symbols-outlined text-[12px] text-on-surface-variant/30 hover:text-primary/50" aria-hidden="true">add</span>
+                                  </button>
+                                ) : (
+                                  <span className="text-on-surface-variant/20">–</span>
+                                )}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* MAAND-GRID */}
+            {view === 'maand' && (
+              <MaandGrid
+                maandStart={maandStart}
+                boekingen={boekingen}
+                isStaff={isStaff}
+                onDagKlik={(dagStr) => openAanvraag(dagStr, vloot[0]?.id)}
+                onBoekingKlik={() => {}}
+              />
+            )}
 
             {/* Tarieven informatiekaart */}
             {tarieven && <TarievenKaart tarieven={tarieven} />}
@@ -254,6 +296,86 @@ export function VerhuurClient({ schoolId, schoolNaam, vloot, isStaff, tarieven }
           onSaved={() => { setShowForm(false); laadBoekingen() }}
         />
       )}
+    </div>
+  )
+}
+
+// ─── MAAND-GRID ─────────────────────────────────────────────────────────────
+
+function MaandGrid({
+  maandStart, boekingen, isStaff, onDagKlik, onBoekingKlik,
+}: {
+  maandStart:  Date
+  boekingen:   Boeking[]
+  isStaff:     boolean
+  onDagKlik:   (dagStr: string) => void
+  onBoekingKlik: (id: string) => void
+}) {
+  // Begin grid op maandag van de week die de 1e bevat; toon 6 weken (42 dagen).
+  const gridStart = subDays(startOfWeek(maandStart, { weekStartsOn: 1 }), 0)
+  const dagen = eachDayOfInterval({ start: gridStart, end: addDays(gridStart, 41) })
+  const weekDagenHeaders = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
+
+  return (
+    <div className="bg-surface-container rounded-2xl border border-white/5 overflow-hidden">
+      <div className="grid grid-cols-7 border-b border-white/5">
+        {weekDagenHeaders.map(d => (
+          <div key={d} className="px-1 py-2 text-center font-label text-[11px] text-on-surface-variant uppercase">
+            {d}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {dagen.map(dag => {
+          const dagStr = format(dag, 'yyyy-MM-dd')
+          const inMaand = isSameMonth(dag, maandStart)
+          const dagBoekingen = boekingen
+            .filter(b => b.datum === dagStr && b.status !== 'afgewezen' && b.status !== 'geannuleerd')
+            .sort((a, b) => a.startTijd.localeCompare(b.startTijd))
+          const isVandaag = isToday(dag)
+
+          return (
+            <button
+              key={dagStr}
+              onClick={() => onDagKlik(dagStr)}
+              className={[
+                'min-h-[88px] text-left px-1.5 py-1 border-b border-r border-white/5 transition-colors',
+                inMaand ? 'hover:bg-primary/5' : 'opacity-40',
+                isVandaag ? 'bg-primary/10' : '',
+              ].join(' ')}
+            >
+              <div className={[
+                'flex items-center justify-between',
+                isVandaag ? 'text-primary font-bold' : 'text-on-surface-variant',
+              ].join(' ')}>
+                <span className="font-label text-xs">{format(dag, 'd')}</span>
+                {dagBoekingen.length > 0 && (
+                  <span className="font-label text-[9px] text-on-surface-variant/70">{dagBoekingen.length}</span>
+                )}
+              </div>
+              <div className="mt-0.5 space-y-0.5">
+                {dagBoekingen.slice(0, 3).map(b => (
+                  <div
+                    key={b.id}
+                    onClick={(e) => { e.stopPropagation(); onBoekingKlik(b.id) }}
+                    className={[
+                      'truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight',
+                      b.status === 'goedgekeurd'  ? 'bg-green-400/20 text-green-300' :
+                      b.status === 'aangevraagd' ? 'bg-amber-400/20 text-amber-300' :
+                      'bg-white/8 text-on-surface-variant',
+                    ].join(' ')}
+                  >
+                    #{b.bootNummer} · {b.startTijd}
+                  </div>
+                ))}
+                {dagBoekingen.length > 3 && (
+                  <div className="font-label text-[9px] text-on-surface-variant/70">+{dagBoekingen.length - 3} meer</div>
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
