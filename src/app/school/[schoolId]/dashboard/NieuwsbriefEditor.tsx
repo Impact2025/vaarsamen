@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { NL_TEMPLATES, NL_MERGE_TAGS, type NlTemplate } from '@/lib/newsletter-templates'
 
 interface Props {
+  schoolId: string
   initialTitel: string
   initialSubject: string
   initialInhoud: string
@@ -45,7 +46,7 @@ function Preview({ inhoud, schoolNaam }: { inhoud: string; schoolNaam: string })
 }
 
 export function NieuwsbriefEditor({
-  initialTitel, initialSubject, initialInhoud, initialTemplate,
+  schoolId, initialTitel, initialSubject, initialInhoud, initialTemplate,
   onSave, saving, onClose,
 }: Props) {
   const [titel, setTitel]         = useState(initialTitel)
@@ -54,6 +55,9 @@ export function NieuwsbriefEditor({
   const [template, setTemplate]     = useState(initialTemplate ?? '')
   const [tab, setTab]              = useState<'bewerk' | 'preview'>('bewerk')
   const [showTpl, setShowTpl]     = useState(false)
+  const [aiBusy, setAiBusy]       = useState(false)
+  const [aiMsg, setAiMsg]         = useState('')
+  const [abSubject, setAbSubject] = useState('')   // A/B-variant onderwerp
   const editorRef                   = useRef<HTMLDivElement>(null)
   const [schoolNaam]               = useState('jouw zeilschool')
 
@@ -98,6 +102,47 @@ export function NieuwsbriefEditor({
     if (editorRef.current) editorRef.current.innerHTML = t.inhoud
     setShowTpl(false)
   }, [])
+
+  // AI-assistent: genereer onderwerp + opening + A/B via de server-route
+  const runAi = useCallback(async () => {
+    const ctx = window.prompt(
+      'Waar gaat de nieuwsbrief over? (bijv. "Open dag zaterdag, 20% korting op zomerclinics")',
+      '',
+    )
+    if (ctx === null) return
+    if (!ctx.trim()) { setAiMsg('Geef wat context voor de AI.'); return }
+
+    setAiBusy(true); setAiMsg('')
+    try {
+      const res = await fetch(`/api/school/${schoolId}/newsletter/ai`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: ctx }),
+      })
+      if (!res.ok) {
+        setAiMsg(`AI mislukt (${res.status}).`)
+        return
+      }
+      const text = await res.text()
+      // Parse ONDERWERP / A/B-ONDERWERP / BODY uit de stream
+      const onderwerpMatch = text.match(/ONDERWERP:\s*(.+)/i)
+      const abMatch        = text.match(/A\/B-ONDERWERP:\s*(.+)/i)
+      const bodyMatch      = text.match(/BODY:\s*([\s\S]+)/i)
+
+      if (onderwerpMatch) setSubject(onderwerpMatch[1].trim())
+      if (abMatch)        setAbSubject(abMatch[1].trim())
+      if (bodyMatch) {
+        const body = bodyMatch[1].trim()
+        setInhoud(body)
+        if (editorRef.current) editorRef.current.innerHTML = body
+      }
+      setAiMsg('AI-concept ingevuld. Controleer en pas aan waar nodig.')
+    } catch (e) {
+      setAiMsg('Fout: ' + (e as Error).message)
+    } finally {
+      setAiBusy(false)
+    }
+  }, [schoolId])
 
   const save = useCallback(async () => {
     if (editorRef.current) setInhoud(editorRef.current.innerHTML)
@@ -156,6 +201,15 @@ export function NieuwsbriefEditor({
           <input value={subject} onChange={e => setSubject(e.target.value)} required placeholder="Onderwerp e-mail"
             className="flex-1 min-w-[180px] px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60" />
         </div>
+        {abSubject && (
+          <input value={abSubject} onChange={e => setAbSubject(e.target.value)} placeholder="A/B-variant onderwerp"
+            className="w-full px-4 py-2.5 rounded-xl bg-surface-container-high border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/40" />
+        )}
+        {aiMsg && (
+          <div className="rounded-xl bg-surface-container-high border border-white/5 p-2 font-label text-xs text-on-surface-variant">
+            {aiMsg}
+          </div>
+        )}
 
         {/* Tab-switch */}
         <div className="flex items-center gap-1">
@@ -172,6 +226,11 @@ export function NieuwsbriefEditor({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-label text-xs text-on-surface-variant hover:text-on-surface border border-white/10">
             <span className="material-symbols-outlined text-sm" aria-hidden="true">auto_awesome</span>
             Template kiezen
+          </button>
+          <button type="button" onClick={runAi} disabled={aiBusy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-label text-xs text-primary border border-primary/30 hover:bg-primary/10 disabled:opacity-40">
+            <span className="material-symbols-outlined text-sm" aria-hidden="true">auto_awesome</span>
+            {aiBusy ? 'AI schrijft…' : 'AI ✨'}
           </button>
         </div>
 

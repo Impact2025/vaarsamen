@@ -3635,6 +3635,7 @@ function NieuwsbriefTab({ schoolId, schoolName, toast }: {
       {/* Editor modal (pro) */}
       {showEditor && (
         <NieuwsbriefEditor
+          schoolId={schoolId}
           initialTitel={titel}
           initialSubject={subject}
           initialInhoud={inhoud}
