@@ -1025,7 +1025,6 @@ export async function markeerSchoolReactieGelezen(reactieId: string, schoolId: s
       and(
         eq(schoolMessageReplies.id, reactieId),
         eq(schoolMessages.schoolId, schoolId),
-        isNull(schoolMessages.deletedAt),
       ),
     )
     .from(schoolMessages)
