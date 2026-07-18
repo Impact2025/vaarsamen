@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 
 type Lid = { membershipId: string; naam: string | null; email: string; role: string; status: string }
+type Verzonden = { id: string; titel: string; bericht: string; createdAt: string | null; reacties: number }
 
 export function SchoolBerichtVersturenClient({ schoolId, leden }: { schoolId: string; leden: Lid[] }) {
   const router = useRouter()
@@ -14,6 +15,18 @@ export function SchoolBerichtVersturenClient({ schoolId, leden }: { schoolId: st
   const [busy, setBusy]          = useState(false)
   const [fout, setFout]          = useState<string | null>(null)
   const [succes, setSucces]      = useState<string | null>(null)
+  const [verzonden, setVerzonden] = useState<Verzonden[]>([])
+
+  async function laadVerzonden() {
+    try {
+      const res = await fetch(`/api/school/${schoolId}/berichten`)
+      if (res.ok) {
+        const d = await res.json()
+        setVerzonden(d.berichten ?? [])
+      }
+    } catch { /* ignore */ }
+  }
+  useEffect(() => { laadVerzonden() }, [schoolId])
 
   function toggle(id: string) {
     setGeselecteerd(prev => {
@@ -40,6 +53,7 @@ export function SchoolBerichtVersturenClient({ schoolId, leden }: { schoolId: st
       else {
         setSucces(`${data.verstuurd} bericht(en) verstuurd.`)
         setGeselecteerd(new Set()); setTitel(''); setBericht('')
+        await laadVerzonden()
         router.refresh()
       }
     } catch {
@@ -95,6 +109,29 @@ export function SchoolBerichtVersturenClient({ schoolId, leden }: { schoolId: st
 
         <Button type="submit" loading={busy} className="w-full">Bericht versturen</Button>
       </form>
+
+      <section className="mt-10" aria-label="Verzonden berichten">
+        <h2 className="font-label font-bold text-xs uppercase tracking-widest text-on-surface-variant mb-3">
+          Verzonden ({verzonden.length})
+        </h2>
+        {verzonden.length === 0 ? (
+          <p className="text-on-surface-variant">Nog geen berichten verstuurd.</p>
+        ) : (
+          <ul className="space-y-2">
+            {verzonden.map(v => (
+              <li key={v.id} className="rounded-2xl glass-card border border-white/5 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-label font-bold text-on-surface">{v.titel}</span>
+                  <span className="font-label text-[10px] rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                    {v.reacties} {v.reacties === 1 ? 'reactie' : 'reacties'}
+                  </span>
+                </div>
+                <p className="font-body text-xs text-on-surface-variant mt-1">{v.bericht}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   )
 }

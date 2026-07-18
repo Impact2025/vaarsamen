@@ -946,9 +946,29 @@ export const schoolMessages = pgTable('school_messages', {
   createdIdx:      index('school_messages_created_idx').on(t.createdAt),
 }))
 
-export const schoolMessagesRelations = relations(schoolMessages, ({ one }) => ({
+export const schoolMessagesRelations = relations(schoolMessages, ({ one, many }) => ({
   school:     one(sailingSchools,   { fields: [schoolMessages.schoolId],     references: [sailingSchools.id] }),
   membership: one(schoolMemberships, { fields: [schoolMessages.membershipId], references: [schoolMemberships.id] }),
+  replies:    many(schoolMessageReplies),
+}))
+
+// ─── SCHOOL → CURSIST BERICHT: REACTIES (zeiler → school) ────────────────────
+// Een lid kan op een school-bericht reageren; de school ziet dit in het dashboard.
+
+export const schoolMessageReplies = pgTable('school_message_replies', {
+  id:         uuid('id').defaultRandom().primaryKey(),
+  messageId:  uuid('message_id').notNull().references(() => schoolMessages.id, { onDelete: 'cascade' }),
+  userId:     uuid('user_id').notNull().references(() => users.id),
+  bericht:    text('bericht').notNull(),
+  createdAt:  timestamp('created_at').defaultNow(),
+}, (t) => ({
+  messageIdx: index('school_message_replies_message_idx').on(t.messageId),
+  createdIdx: index('school_message_replies_created_idx').on(t.createdAt),
+}))
+
+export const schoolMessageRepliesRelations = relations(schoolMessageReplies, ({ one }) => ({
+  message: one(schoolMessages, { fields: [schoolMessageReplies.messageId], references: [schoolMessages.id] }),
+  user:    one(users, { fields: [schoolMessageReplies.userId], references: [users.id] }),
 }))
 
 // ─── NIEUWSBRIEF: ABONNEES ───────────────────────────────────────────────────
@@ -1050,4 +1070,28 @@ export const newsletterCampaignsRelations = relations(newsletterCampaigns, ({ on
 export const newsletterSendsRelations = relations(newsletterSends, ({ one }) => ({
   campaign:    one(newsletterCampaigns, { fields: [newsletterSends.campaignId], references: [newsletterCampaigns.id] }),
   subscriber:  one(newsletterSubscribers, { fields: [newsletterSends.subscriberId], references: [newsletterSubscribers.id] }),
+}))
+
+// ─── LESMATERIAAL (theorie, oefeningen, docentenhandleidingen) ─────────────────
+
+export const lessonMaterials = pgTable('lesson_materials', {
+  id:             uuid('id').defaultRandom().primaryKey(),
+  schoolId:       uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  titel:          varchar('titel', { length: 160 }).notNull(),
+  beschrijving:   text('beschrijving'),
+  bestandsNaam:   varchar('bestands_naam', { length: 255 }).notNull(),
+  bestandsUrl:    text('bestands_url').notNull(),
+  bestandstype:   varchar('bestands_type', { length: 120 }),
+  bestandsGrootte: integer('bestands_grootte'), // bytes
+  cwoNiveau:      cwoLevelEnum('cwo_niveau').default('geen'),
+  categorie:      varchar('categorie', { length: 40 }).default('theorie'), // theorie | oefening | examen | overig
+  uploadedById:   uuid('uploaded_by_id').references(() => users.id),
+  createdAt:      timestamp('created_at').defaultNow(),
+}, (t) => ({
+  schoolIdx: index('lesson_materials_school_idx').on(t.schoolId),
+}))
+
+export const lessonMaterialsRelations = relations(lessonMaterials, ({ one }) => ({
+  school:    one(sailingSchools, { fields: [lessonMaterials.schoolId], references: [sailingSchools.id] }),
+  uploader:  one(users,         { fields: [lessonMaterials.uploadedById], references: [users.id] }),
 }))

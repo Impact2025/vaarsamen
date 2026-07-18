@@ -64,14 +64,15 @@ interface Props {
   myRole:    SchoolRole
 }
 
-type Tab = 'lessen' | 'cursisten' | 'berichten' | 'vloot' | 'leden' | 'nieuwsbrief' | 'verhuur' | 'meldingen' | 'klussen' | 'instellingen'
+type Tab = 'lessen' | 'cursisten' | 'berichten' | 'vloot' | 'leden' | 'nieuwsbrief' | 'verhuur' | 'meldingen' | 'klussen' | 'lesmateriaal' | 'instellingen'
 type CourseRow = SchoolDashboardData['courses'][number]
 
 export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }: Props) {
   const { school, stats, courses, recenteLessen } = dashboard
   const isEigenaar = myRole === 'eigenaar'
+  const isInstructeur = myRole === 'instructeur'
   const isKlusser  = myRole === 'klusser'
-  const isStaff     = isEigenaar || myRole === 'instructeur'
+  const isStaff     = isEigenaar || isInstructeur
 
   const [activeTab, setActiveTab]         = useState<Tab>('lessen')
   const [openCourse, setOpenCourse]       = useState<string | null>(courses[0]?.id ?? null)
@@ -94,6 +95,17 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
         { id: 'meldingen',    label: 'Meldingen',    icon: 'report',         tip: 'Schade- en onderhoudsmeldingen' },
         { id: 'klussen',      label: 'Klussen',      icon: 'build',          tip: 'Onderhoudsklussen voor vrijwilligers' },
         { id: 'instellingen', label: 'Instellingen', icon: 'settings',       tip: 'Schoolgegevens, tarieven en verhuurblokken' },
+      ]
+    : isInstructeur
+      ? [
+        { id: 'lessen',       label: 'Lessen',       icon: 'calendar_today', tip: 'Planning van cursussen en lesdagen' },
+        { id: 'cursisten',    label: 'Cursisten',    icon: 'school',         tip: 'Cursisten en hun vorderingen' },
+        { id: 'lesmateriaal', label: 'Lesmateriaal', icon: 'menu_book',      tip: 'Theorie, oefeningen en docentenhandleidingen' },
+        { id: 'berichten',    label: 'Berichten',    icon: 'forum',          tip: 'Prikbord voor het hele team' },
+        { id: 'verhuur',      label: 'Verhuur',      icon: 'key',            tip: 'Boot huren voor de school' },
+        { id: 'klussen',      label: 'Klussen',      icon: 'build',          tip: 'Onderhoudsklussen toewijzen en bijhouden' },
+        { id: 'vloot',        label: 'Vloot',        icon: 'sailing',        tip: 'Schoolboten en beschikbaarheid' },
+        { id: 'meldingen',    label: 'Meldingen',    icon: 'report',         tip: 'Schade- en onderhoudsmeldingen' },
       ]
     : isKlusser
       ? [
@@ -240,11 +252,15 @@ export function SchoolDashboardClient({ dashboard, schoolId, myUserId, myRole }:
         <VlootTab schoolId={schoolId} toast={toast} />
       )}
 
-      {activeTab === 'verhuur' && isEigenaar && (
+      {activeTab === 'verhuur' && isStaff && (
         <VerhuurTab schoolId={schoolId} toast={toast} />
       )}
 
-      {activeTab === 'meldingen' && (isEigenaar || myRole === 'lid') && (
+      {activeTab === 'lesmateriaal' && (
+        <LesmateriaalTab schoolId={schoolId} myUserId={myUserId} isBeheerder={isStaff} toast={toast} />
+      )}
+
+      {activeTab === 'meldingen' && (isEigenaar || isInstructeur || myRole === 'lid') && (
         <MeldingenTab schoolId={schoolId} toast={toast} />
       )}
 
@@ -1626,6 +1642,197 @@ const BD_STATUS = {
   goedgekeurd: { label: 'Goedgekeurd', cls: 'bg-green-400/15 text-green-300',       icon: 'check_circle'    },
   afgewezen:   { label: 'Afgewezen',   cls: 'bg-red-400/15 text-red-300',           icon: 'cancel'          },
   geannuleerd: { label: 'Geannuleerd', cls: 'bg-white/8 text-on-surface-variant',   icon: 'block'           },
+}
+
+// ─── LESMATERIAAL TAB ──────────────────────────────────────────────────────────
+
+type Materiaal = {
+  id: string
+  titel: string
+  beschrijving: string | null
+  bestandsNaam: string
+  bestandsUrl: string
+  bestandstype: string | null
+  bestandsGrootte: number | null
+  cwoNiveau: string
+  categorie: string
+  createdAt: string
+}
+
+function LesmateriaalTab({
+  schoolId, myUserId, isBeheerder, toast,
+}: {
+  schoolId: string
+  myUserId: string
+  isBeheerder: boolean
+  toast: (msg: string, type?: 'success' | 'error') => void
+}) {
+  const [materiaal, setMateriaal] = useState<Materiaal[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [titel, setTitel]           = useState('')
+  const [beschrijving, setBeschrijving] = useState('')
+  const [cwoNiveau, setCwoNiveau]   = useState('geen')
+  const [categorie, setCategorie]   = useState('theorie')
+  const [bestand, setBestand]       = useState<File | null>(null)
+  const [saving, setSaving]         = useState(false)
+  const [error, setError]           = useState('')
+
+  const CATEGORIE_LABEL: Record<string, string> = {
+    theorie: 'Theorie', oefening: 'Oefening', examen: 'Examen', overig: 'Overig',
+  }
+
+  const laad = useCallback(async () => {
+    setLoading(true)
+    const res = await fetch(`/api/school/${schoolId}/lesmateriaal`)
+    if (res.ok) setMateriaal((await res.json()).materialen ?? [])
+    setLoading(false)
+  }, [schoolId])
+
+  useEffect(() => { laad() }, [laad])
+
+  async function handleUpload(e: React.FormEvent) {
+    e.preventDefault()
+    if (!bestand || !titel.trim()) { setError('Titel en bestand zijn verplicht'); return }
+    setSaving(true); setError('')
+    const fd = new FormData()
+    fd.append('bestand', bestand)
+    fd.append('titel', titel.trim())
+    fd.append('beschrijving', beschrijving.trim())
+    fd.append('cwoNiveau', cwoNiveau)
+    fd.append('categorie', categorie)
+    const res = await fetch(`/api/school/${schoolId}/lesmateriaal`, { method: 'POST', body: fd })
+    if (res.ok) {
+      setShowForm(false); setTitel(''); setBeschrijving(''); setBestand(null); setCwoNiveau('geen'); setCategorie('theorie')
+      toast('Lesmateriaal toegevoegd')
+      laad()
+    } else {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error ?? 'Upload mislukt')
+    }
+    setSaving(false)
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Lesmateriaal verwijderen?')) return
+    const res = await fetch(`/api/school/${schoolId}/lesmateriaal?id=${id}`, { method: 'DELETE' })
+    if (res.ok) { toast('Verwijderd'); laad() } else toast('Mislukt', 'error')
+  }
+
+  function fmtGrootte(b: number | null) {
+    if (!b) return ''
+    return b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.round(b / 1024)} KB`
+  }
+  function fmtDatum(d: string) {
+    try { return new Date(d).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) } catch { return '' }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-headline font-bold text-lg text-on-surface">Lesmateriaal</h2>
+        {isBeheerder && (
+          <button
+            onClick={() => setShowForm(v => !v)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl gradient-primary font-label text-sm font-semibold text-on-primary shadow-glow"
+          >
+            <span className="material-symbols-outlined text-base" aria-hidden="true">upload_file</span>
+            {showForm ? 'Annuleren' : 'Uploaden'}
+          </button>
+        )}
+      </div>
+
+      {isBeheerder && showForm && (
+        <form onSubmit={handleUpload} className="bg-surface-container rounded-2xl border border-white/5 p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              value={titel} onChange={e => setTitel(e.target.value)} placeholder="Titel (bijv. Theorie blok 3)"
+              className="px-3 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60"
+            />
+            <select value={categorie} onChange={e => setCategorie(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60">
+              <option value="theorie">Theorie</option>
+              <option value="oefening">Oefening</option>
+              <option value="examen">Examen</option>
+              <option value="overig">Overig</option>
+            </select>
+            <input value={beschrijving} onChange={e => setBeschrijving(e.target.value)} placeholder="Korte omschrijving (optioneel)"
+              className="px-3 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60 sm:col-span-2"
+            />
+            <select value={cwoNiveau} onChange={e => setCwoNiveau(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm focus:outline-none focus:border-primary/60">
+              <option value="geen">Alle niveaus</option>
+              <option value="cwo_kielboot1">CWO Kielboot I</option>
+              <option value="cwo_kielboot2">CWO Kielboot II</option>
+              <option value="cwo_kielboot3">CWO Kielboot III</option>
+            </select>
+            <input type="file" onChange={e => setBestand(e.target.files?.[0] ?? null)}
+              className="px-3 py-2 rounded-xl bg-surface border border-white/10 text-on-surface font-body text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary/15 file:px-3 file:py-1 file:text-primary file:font-semibold"
+            />
+          </div>
+          {error && <p className="font-body text-sm text-error">{error}</p>}
+          <div className="flex justify-end">
+            <button type="submit" disabled={saving || !bestand || !titel.trim()}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl gradient-primary font-label text-sm font-semibold text-on-primary shadow-glow disabled:opacity-50">
+              <span className="material-symbols-outlined text-base" aria-hidden="true">cloud_upload</span>
+              {saving ? 'Bezig…' : 'Opslaan'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1,2,3].map(i => <div key={i} className="h-16 bg-surface-container rounded-xl animate-pulse" />)}
+        </div>
+      ) : materiaal.length === 0 ? (
+        <div className="text-center py-12 space-y-2">
+          <span className="material-symbols-outlined text-5xl text-on-surface-variant/30" aria-hidden="true">menu_book</span>
+          <p className="font-body text-on-surface-variant">Nog geen lesmateriaal. {isBeheerder ? 'Upload als eerste een document.' : 'De school heeft nog geen lesmateriaal gedeeld.'}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {materiaal.map(m => (
+            <div key={m.id} className="bg-surface-container rounded-2xl border border-white/5 p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-label font-semibold text-on-surface truncate">{m.titel}</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">
+                      {CATEGORIE_LABEL[m.categorie] ?? m.categorie}
+                    </span>
+                    {m.cwoNiveau && m.cwoNiveau !== 'geen' && (
+                      <span className="px-2 py-0.5 rounded-full bg-white/8 text-on-surface-variant text-[10px] font-semibold">
+                        {m.cwoNiveau.replace('cwo_', 'CWO ').replace('kielboot', 'Kielboot ')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {isBeheerder && (
+                  <button onClick={() => handleDelete(m.id)} aria-label="Verwijderen"
+                    className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors">
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">delete</span>
+                  </button>
+                )}
+              </div>
+              {m.beschrijving && <p className="font-body text-xs text-on-surface-variant line-clamp-2">{m.beschrijving}</p>}
+              <div className="flex items-center justify-between pt-1">
+                <span className="font-label text-[11px] text-on-surface-variant/70">
+                  {m.bestandsNaam}{fmtGrootte(m.bestandsGrootte) && ` · ${fmtGrootte(m.bestandsGrootte)}`}
+                </span>
+                <a href={m.bestandsUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/15 text-primary font-label text-xs font-semibold hover:bg-primary/25 transition-colors">
+                  <span className="material-symbols-outlined text-sm" aria-hidden="true">download</span>
+                  Download
+                </a>
+              </div>
+              <p className="font-label text-[10px] text-on-surface-variant/50">{fmtDatum(m.createdAt)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function VerhuurTab({ schoolId, toast }: { schoolId: string; toast: (msg: string, type?: 'success' | 'error') => void }) {

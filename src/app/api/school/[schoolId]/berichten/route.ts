@@ -2,7 +2,9 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { schoolMessages, schoolMemberships, isStaff } from '@/lib/db/schema'
 import { getSchoolMembership } from '@/lib/db/queries/school'
-import { and, eq, isNull } from 'drizzle-orm'
+import { getProfileByUserId } from '@/lib/db/queries/profiles'
+import { sendPushToProfile } from '@/lib/push'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 // ─── GET /api/school/[schoolId]/berichten ────────────────────────────────────
@@ -31,9 +33,10 @@ export async function GET(
       bericht: schoolMessages.bericht,
       gelezenOp: schoolMessages.gelezenOp,
       createdAt: schoolMessages.createdAt,
+      reacties: sql<number>`(select count(*) from school_message_replies r where r.message_id = ${schoolMessages.id})::int`,
     })
     .from(schoolMessages)
-    .where(and(eq(schoolMessages.schoolId, schoolId), isNull(schoolMessages.gelezenOp)))
+    .where(eq(schoolMessages.schoolId, schoolId))
     .orderBy(schoolMessages.createdAt)
 
   return Response.json({ berichten: rows })
@@ -69,15 +72,15 @@ export async function POST(
 
   // Controleer dat de doel-leden écht bij deze school horen (geen cross-school leak).
   const leden = await db
-    .select({ id: schoolMemberships.id, schoolId: schoolMemberships.schoolId })
+    .select({ id: schoolMemberships.id, userId: schoolMemberships.userId })
     .from(schoolMemberships)
     .where(and(
       eq(schoolMemberships.schoolId, schoolId),
       isNull(schoolMemberships.deletedAt),
     ))
 
-  const geldigIds = new Set(leden.map(l => l.id))
-  const doelen = lidIds.filter(id => geldigIds.has(id))
+  const geldig = new Map(leden.map(l => [l.id, l.userId]))
+  const doelen = lidIds.filter(id => geldig.has(id))
   if (doelen.length === 0) {
     return Response.json({ error: 'Geen geldige leden geselecteerd' }, { status: 400 })
   }
@@ -92,6 +95,19 @@ export async function POST(
       bericht,
     })))
     .returning()
+
+  // Push-notificatie naar elk lid (best-effort; faalt stil bij geen subscription).
+  const doelUserIds = doelen.map(id => geldig.get(id)!).filter(Boolean)
+  await Promise.allSettled(doelUserIds.map(async (uid) => {
+    const profile = await getProfileByUserId(uid)
+    if (profile) {
+      await sendPushToProfile(profile.id, {
+        title: `Bericht van je zeilschool: ${titel}`,
+        body:  bericht.length > 120 ? bericht.slice(0, 117) + '…' : bericht,
+        url:   '/school-berichten',
+      })
+    }
+  }))
 
   return Response.json({ verstuurd: nieuw.length, berichten: nieuw }, { status: 201 })
 }

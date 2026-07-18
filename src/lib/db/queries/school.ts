@@ -7,7 +7,7 @@ import {
   boatRentals, boatIssues,
   users,
   newsletterSubscribers, newsletterCampaigns, newsletterSends, crmNotes,
-  schoolMessages,
+  schoolMessages, schoolMessageReplies,
 } from '@/lib/db/schema'
 import type { SchoolRole, MembershipStatus } from '@/lib/db/schema'
 import { and, eq, isNull, desc, count, inArray, asc, sql } from 'drizzle-orm'
@@ -934,4 +934,80 @@ export async function getMijnBootreserveringen(userId: string, schoolId: string)
     ))
     .orderBy(boatRentals.datum)
   return rows
+}
+
+// ─── ZEILER → SCHOOL REACTIE OP BERICHT ───────────────────────────────────────
+
+export type SchoolBerichtMetReplies = SchoolBericht & {
+  replies: { id: string; bericht: string; createdAt: Date | null; vanNaam: string | null }[]
+}
+
+/**
+ * Haal één school-bericht op mét de reacties van de zeiler (voor de
+ * zeiler-detailweergave). Enkel berichten van de ingelogde gebruiker.
+ */
+export async function getSchoolBerichtMetReplies(
+  berichtId: string, userId: string,
+): Promise<SchoolBerichtMetReplies | null> {
+  const [bericht] = await db
+    .select({
+      id:         schoolMessages.id,
+      schoolId:   schoolMessages.schoolId,
+      schoolNaam: sailingSchools.name,
+      fromRole:   schoolMessages.fromRole,
+      titel:      schoolMessages.titel,
+      bericht:    schoolMessages.bericht,
+      gelezenOp:  schoolMessages.gelezenOp,
+      createdAt:  schoolMessages.createdAt,
+    })
+    .from(schoolMessages)
+    .innerJoin(schoolMemberships, eq(schoolMessages.membershipId, schoolMemberships.id))
+    .innerJoin(sailingSchools,    eq(schoolMessages.schoolId,     sailingSchools.id))
+    .where(and(
+      eq(schoolMessages.id, berichtId),
+      eq(schoolMemberships.userId, userId),
+      isNull(schoolMemberships.deletedAt),
+    ))
+    .limit(1)
+  if (!bericht) return null
+
+  const replies = await db
+    .select({
+      id:        schoolMessageReplies.id,
+      bericht:   schoolMessageReplies.bericht,
+      createdAt: schoolMessageReplies.createdAt,
+      vanNaam:   users.name,
+    })
+    .from(schoolMessageReplies)
+    .innerJoin(users, eq(schoolMessageReplies.userId, users.id))
+    .where(eq(schoolMessageReplies.messageId, berichtId))
+    .orderBy(schoolMessageReplies.createdAt)
+
+  return { ...bericht, replies }
+}
+
+/**
+ * Zeiler reageert op een school-bericht. Controleert dat het bericht van de
+ * ingelogde gebruiker is (geen reactie op berichten van vreemden).
+ */
+export async function voegSchoolBerichtReactieToe(
+  berichtId: string, userId: string, bericht: string,
+): Promise<{ id: string } | null> {
+  const [check] = await db
+    .select({ id: schoolMessages.id })
+    .from(schoolMessages)
+    .innerJoin(schoolMemberships, eq(schoolMessages.membershipId, schoolMemberships.id))
+    .where(and(
+      eq(schoolMessages.id, berichtId),
+      eq(schoolMemberships.userId, userId),
+      isNull(schoolMemberships.deletedAt),
+    ))
+    .limit(1)
+  if (!check) return null
+
+  const [nieuw] = await db
+    .insert(schoolMessageReplies)
+    .values({ messageId: berichtId, userId, bericht })
+    .returning({ id: schoolMessageReplies.id })
+  return nieuw ?? null
 }
