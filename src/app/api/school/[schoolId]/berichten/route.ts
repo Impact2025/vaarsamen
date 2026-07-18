@@ -1,10 +1,10 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { schoolMessages, schoolMemberships, isStaff } from '@/lib/db/schema'
+import { schoolMessages, schoolMemberships, schoolMessageReplies, isStaff } from '@/lib/db/schema'
 import { getSchoolMembership } from '@/lib/db/queries/school'
 import { getProfileByUserId } from '@/lib/db/queries/profiles'
 import { sendPushToProfile } from '@/lib/push'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNull, count, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 
 // ─── GET /api/school/[schoolId]/berichten ────────────────────────────────────
@@ -33,13 +33,24 @@ export async function GET(
       bericht: schoolMessages.bericht,
       gelezenOp: schoolMessages.gelezenOp,
       createdAt: schoolMessages.createdAt,
-      reacties: sql<number>`(select count(*) from school_message_replies r where r.message_id = ${schoolMessages.id})::int`,
     })
     .from(schoolMessages)
     .where(eq(schoolMessages.schoolId, schoolId))
     .orderBy(schoolMessages.createdAt)
 
-  return Response.json({ berichten: rows })
+  // Tel reacties per bericht (apart, robuust).
+  const messageIds = rows.map(r => r.id)
+  const reactieCounts = messageIds.length > 0
+    ? await db
+        .select({ messageId: schoolMessageReplies.messageId, n: count() })
+        .from(schoolMessageReplies)
+        .where(inArray(schoolMessageReplies.messageId, messageIds))
+        .groupBy(schoolMessageReplies.messageId)
+    : []
+  const countMap = new Map(reactieCounts.map(r => [r.messageId, Number(r.n)]))
+
+  const berichten = rows.map(r => ({ ...r, reacties: countMap.get(r.id) ?? 0 }))
+  return Response.json({ berichten })
 }
 
 // ─── POST /api/school/[schoolId]/berichten ───────────────────────────────────
