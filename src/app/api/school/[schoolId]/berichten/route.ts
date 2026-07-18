@@ -1,102 +1,97 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { schoolBerichten, users } from '@/lib/db/schema'
+import { schoolMessages, schoolMemberships, isStaff } from '@/lib/db/schema'
 import { getSchoolMembership } from '@/lib/db/queries/school'
-import { and, eq, desc } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 
-const berichtSchema = z.object({
-  inhoud:   z.string().min(1).max(2000),
-  courseId: z.string().uuid().optional(),
-})
+// ─── GET /api/school/[schoolId]/berichten ────────────────────────────────────
+// Staff (eigenaar/instructeur) ziet alle verstuurde berichten van deze school.
 
-// GET /api/school/[schoolId]/berichten — toegankelijk voor alle leden (incl. cursisten)
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ schoolId: string }> }
+  { params }: { params: Promise<{ schoolId: string }> },
 ) {
   const session = await auth()
-  if (!session?.user?.id) return Response.json({ error: 'Niet ingelogd' }, { status: 401 })
+  if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership) return Response.json({ error: 'Geen toegang' }, { status: 403 })
+  if (!membership || !isStaff(membership.role)) {
+    return Response.json({ error: 'Geen toegang' }, { status: 403 })
+  }
 
   const rows = await db
     .select({
-      id:        schoolBerichten.id,
-      inhoud:    schoolBerichten.inhoud,
-      courseId:  schoolBerichten.courseId,
-      createdAt: schoolBerichten.createdAt,
-      sender: {
-        id:    users.id,
-        name:  users.name,
-        email: users.email,
-        image: users.image,
-      },
+      id: schoolMessages.id,
+      schoolId: schoolMessages.schoolId,
+      membershipId: schoolMessages.membershipId,
+      fromRole: schoolMessages.fromRole,
+      titel: schoolMessages.titel,
+      bericht: schoolMessages.bericht,
+      gelezenOp: schoolMessages.gelezenOp,
+      createdAt: schoolMessages.createdAt,
     })
-    .from(schoolBerichten)
-    .leftJoin(users, eq(users.id, schoolBerichten.senderUserId))
-    .where(eq(schoolBerichten.schoolId, schoolId))
-    .orderBy(desc(schoolBerichten.createdAt))
-    .limit(50)
+    .from(schoolMessages)
+    .where(and(eq(schoolMessages.schoolId, schoolId), isNull(schoolMessages.gelezenOp)))
+    .orderBy(schoolMessages.createdAt)
 
   return Response.json({ berichten: rows })
 }
 
-// POST /api/school/[schoolId]/berichten — toegankelijk voor alle leden (incl. cursisten)
+// ─── POST /api/school/[schoolId]/berichten ───────────────────────────────────
+// Staff stuurt een bericht naar één of meerdere leden van de school.
+
+const CreateSchema = z.object({
+  lidIds:   z.array(z.string().uuid()).min(1),
+  titel:    z.string().min(1).max(120),
+  bericht:  z.string().min(1).max(2000),
+})
+
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ schoolId: string }> }
+  { params }: { params: Promise<{ schoolId: string }> },
 ) {
   const session = await auth()
-  if (!session?.user?.id) return Response.json({ error: 'Niet ingelogd' }, { status: 401 })
+  if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { schoolId } = await params
   const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership) return Response.json({ error: 'Geen toegang' }, { status: 403 })
-
-  const body = await req.json().catch(() => null)
-  const parsed = berichtSchema.safeParse(body)
-  if (!parsed.success) {
-    return Response.json({ error: parsed.error.issues[0]?.message ?? 'Ongeldig verzoek' }, { status: 400 })
+  if (!membership || !isStaff(membership.role)) {
+    return Response.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
-  const [bericht] = await db
-    .insert(schoolBerichten)
-    .values({
+  const body = await req.json().catch(() => null)
+  const parsed = CreateSchema.safeParse(body)
+  if (!parsed.success) return Response.json({ error: 'Ongeldige invoer' }, { status: 400 })
+
+  const { lidIds, titel, bericht } = parsed.data
+
+  // Controleer dat de doel-leden écht bij deze school horen (geen cross-school leak).
+  const leden = await db
+    .select({ id: schoolMemberships.id, schoolId: schoolMemberships.schoolId })
+    .from(schoolMemberships)
+    .where(and(
+      eq(schoolMemberships.schoolId, schoolId),
+      isNull(schoolMemberships.deletedAt),
+    ))
+
+  const geldigIds = new Set(leden.map(l => l.id))
+  const doelen = lidIds.filter(id => geldigIds.has(id))
+  if (doelen.length === 0) {
+    return Response.json({ error: 'Geen geldige leden geselecteerd' }, { status: 400 })
+  }
+
+  const nieuw = await db
+    .insert(schoolMessages)
+    .values(doelen.map(membershipId => ({
       schoolId,
-      senderUserId: session.user.id,
-      inhoud:       parsed.data.inhoud,
-      courseId:     parsed.data.courseId,
-    })
+      membershipId,
+      fromRole: membership.role,
+      titel,
+      bericht,
+    })))
     .returning()
 
-  return Response.json({ bericht }, { status: 201 })
-}
-
-// DELETE /api/school/[schoolId]/berichten?id=...
-// Eigen berichten mag iedereen verwijderen; eigenaar mag alles
-export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ schoolId: string }> }
-) {
-  const session = await auth()
-  if (!session?.user?.id) return Response.json({ error: 'Niet ingelogd' }, { status: 401 })
-
-  const { schoolId } = await params
-  const membership = await getSchoolMembership(schoolId, session.user.id)
-  if (!membership) return Response.json({ error: 'Geen toegang' }, { status: 403 })
-
-  const id = new URL(req.url).searchParams.get('id')
-  if (!id) return Response.json({ error: 'id vereist' }, { status: 400 })
-
-  const where = membership.role === 'eigenaar'
-    ? and(eq(schoolBerichten.id, id), eq(schoolBerichten.schoolId, schoolId))
-    : and(eq(schoolBerichten.id, id), eq(schoolBerichten.schoolId, schoolId), eq(schoolBerichten.senderUserId, session.user.id))
-
-  const deleted = await db.delete(schoolBerichten).where(where).returning({ id: schoolBerichten.id })
-  if (deleted.length === 0) return Response.json({ error: 'Niet gevonden of geen rechten' }, { status: 404 })
-
-  return Response.json({ ok: true })
+  return Response.json({ verstuurd: nieuw.length, berichten: nieuw }, { status: 201 })
 }

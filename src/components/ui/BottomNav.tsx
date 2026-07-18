@@ -8,38 +8,40 @@ import { motion } from 'framer-motion'
 const NAV_ITEMS = [
   { href: '/ontdekken',         icon: 'explore',         label: 'Ontdekken' },
   { href: '/mijn-vorderingen',  icon: 'school',          label: 'Vorderingen' },
-  { href: '/tochten',           icon: 'directions_boat', label: 'Tochten'   },
+  { href: '/boeken',            icon: 'sailing',         label: 'Boeken' },
+  { href: '/school-berichten',  icon: 'campaign',        label: 'School' },
   { href: '/berichten',         icon: 'chat',            label: 'Berichten' },
-  { href: '/profiel',           icon: 'account_circle',  label: 'Profiel'   },
+  { href: '/profiel',           icon: 'account_circle',  label: 'Profiel' },
 ] as const
 
-const TOCHTEN_KEY   = 'tochten_last_visit'
 const BERICHTEN_KEY = 'berichten_last_visit'
+const SCHOOL_KEY    = 'school_berichten_last_visit'
 
 export function BottomNav() {
   const pathname = usePathname()
-  const [tochtenCount,   setTochtenCount]   = useState(0)
   const [berichtenCount, setBerichtenCount] = useState(0)
+  const [schoolCount,    setSchoolCount]    = useState(0)
 
   useEffect(() => {
-    const lastVisit = localStorage.getItem(TOCHTEN_KEY)
-    const since     = lastVisit ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    fetch(`/api/tochten/count?since=${encodeURIComponent(since)}`)
-      .then(r => r.json()).then(d => setTochtenCount(d.nieuw ?? 0)).catch(() => {})
-
     fetch('/api/matches?unread=1')
       .then(r => r.json()).then(d => setBerichtenCount(d.unread ?? 0)).catch(() => {})
+
+    fetch('/api/school-berichten')
+      .then(r => r.json()).then(d => {
+        const ongelezen = (d.berichten ?? []).filter((b: any) => !b.gelezenOp).length
+        setSchoolCount(ongelezen)
+      }).catch(() => {})
   }, [])
 
   useEffect(() => {
-    if (pathname === '/tochten' || pathname.startsWith('/tochten/')) {
-      localStorage.setItem(TOCHTEN_KEY, new Date().toISOString())
-      setTochtenCount(0)
-    }
     if (pathname === '/berichten' || pathname.startsWith('/berichten/') ||
         pathname === '/matches'   || pathname.startsWith('/matches/')) {
       localStorage.setItem(BERICHTEN_KEY, new Date().toISOString())
       setBerichtenCount(0)
+    }
+    if (pathname === '/school-berichten') {
+      localStorage.setItem(SCHOOL_KEY, new Date().toISOString())
+      setSchoolCount(0)
     }
   }, [pathname])
 
@@ -61,8 +63,8 @@ export function BottomNav() {
             {NAV_ITEMS.map(({ href, icon, label }) => {
               const isActive   = pathname === href || pathname.startsWith(`${href}/`) ||
                 (href === '/berichten' && (pathname === '/matches' || pathname.startsWith('/matches/')))
-              const badgeCount = href === '/tochten'   ? tochtenCount
-                               : href === '/berichten' ? berichtenCount
+              const badgeCount = href === '/berichten' ? berichtenCount
+                               : href === '/school-berichten' ? schoolCount
                                : 0
 
               return (

@@ -7,6 +7,7 @@ import {
   boatRentals, boatIssues,
   users,
   newsletterSubscribers, newsletterCampaigns, newsletterSends, crmNotes,
+  schoolMessages,
 } from '@/lib/db/schema'
 import type { SchoolRole, MembershipStatus } from '@/lib/db/schema'
 import { and, eq, isNull, desc, count, inArray, asc, sql } from 'drizzle-orm'
@@ -696,6 +697,31 @@ export async function getSchoolLeden(schoolId: string): Promise<SchoolLid[]> {
   }))
 }
 
+/**
+ * Leden van een school mét hun membership-id (voor het versturen van
+ * school-berichten, die op membershipId refereren).
+ */
+export async function getSchoolLedenMetMembershipId(schoolId: string): Promise<{
+  membershipId: string; naam: string | null; email: string; role: string; status: string
+}[]> {
+  const rows = await db
+    .select({
+      membershipId: schoolMemberships.id,
+      naam:         users.name,
+      email:        users.email,
+      role:         schoolMemberships.role,
+      status:       schoolMemberships.status,
+    })
+    .from(schoolMemberships)
+    .innerJoin(users, eq(schoolMemberships.userId, users.id))
+    .where(and(
+      eq(schoolMemberships.schoolId, schoolId),
+      isNull(schoolMemberships.deletedAt),
+    ))
+    .orderBy(schoolMemberships.role, users.name)
+  return rows
+}
+
 // ─── LESSEN VAN EEN CURSUS ────────────────────────────────────────────────────
 
 export type LesOverzicht = typeof schoolLessons.$inferSelect & {
@@ -731,4 +757,181 @@ export async function getLessenVoorCursus(courseId: string): Promise<LesOverzich
     aantalCursisten: countMap[r.les.id] ?? 0,
     instructeurNaam: r.instructeurNaam ?? null,
   }))
+}
+
+// ─── SCHOOL → CURSIST BERICHTEN (app-inbox) ───────────────────────────────────
+
+export type SchoolBericht = {
+  id:         string
+  schoolId:   string
+  schoolNaam: string
+  fromRole:   string
+  titel:      string
+  bericht:    string
+  gelezenOp:  Date | null
+  createdAt:  Date | null
+}
+
+/**
+ * Alle berichten van scholen waar de gebruiker lid van is, nieuwste eerst.
+ * Wordt getoond in de zeiler-app onder /school-berichten.
+ */
+export async function getSchoolBerichtenVoorUser(userId: string): Promise<SchoolBericht[]> {
+  const membershipIds = (await db
+    .select({ id: schoolMemberships.id })
+    .from(schoolMemberships)
+    .where(and(eq(schoolMemberships.userId, userId), isNull(schoolMemberships.deletedAt)))
+  ).map(r => r.id)
+  if (membershipIds.length === 0) return []
+
+  const rows = await db
+    .select({
+      id:         schoolMessages.id,
+      schoolId:   schoolMessages.schoolId,
+      schoolNaam: sailingSchools.name,
+      fromRole:   schoolMessages.fromRole,
+      titel:      schoolMessages.titel,
+      bericht:    schoolMessages.bericht,
+      gelezenOp:  schoolMessages.gelezenOp,
+      createdAt:  schoolMessages.createdAt,
+    })
+    .from(schoolMessages)
+    .innerJoin(schoolMemberships, eq(schoolMessages.membershipId, schoolMemberships.id))
+    .innerJoin(sailingSchools,    eq(schoolMessages.schoolId,     sailingSchools.id))
+    .where(inArray(schoolMessages.membershipId, membershipIds))
+    .orderBy(desc(schoolMessages.createdAt))
+
+  return rows
+}
+
+/**
+ * Markeer alle berichten van de gebruiker als gelezen.
+ */
+export async function markeerSchoolBerichtenGelezen(userId: string): Promise<void> {
+  const membershipIds = (await db
+    .select({ id: schoolMemberships.id })
+    .from(schoolMemberships)
+    .where(and(eq(schoolMemberships.userId, userId), isNull(schoolMemberships.deletedAt)))
+  ).map(r => r.id)
+  if (membershipIds.length === 0) return
+
+  await db
+    .update(schoolMessages)
+    .set({ gelezenOp: new Date() })
+    .where(and(
+      inArray(schoolMessages.membershipId, membershipIds),
+      isNull(schoolMessages.gelezenOp),
+    ))
+}
+
+/**
+ * Ongelezen school-berichten tellen (voor de nav-badge).
+ */
+export async function telOngelezenSchoolBerichten(userId: string): Promise<number> {
+  const membershipIds = (await db
+    .select({ id: schoolMemberships.id })
+    .from(schoolMemberships)
+    .where(and(eq(schoolMemberships.userId, userId), isNull(schoolMemberships.deletedAt)))
+  ).map(r => r.id)
+  if (membershipIds.length === 0) return 0
+
+  const [row] = await db
+    .select({ n: count() })
+    .from(schoolMessages)
+    .where(and(
+      inArray(schoolMessages.membershipId, membershipIds),
+      isNull(schoolMessages.gelezenOp),
+    ))
+  return Number(row?.n ?? 0)
+}
+
+// ─── ZEILER: EIGEN SCHOOL + VLOOT (voor boot reserveren) ──────────────────────
+
+export type SailorSchool = {
+  schoolId:    string
+  schoolNaam:  string
+  membershipId: string
+  role:        string
+  status:      string
+}
+
+export type FleetBoot = {
+  id:         string
+  bootNummer: string
+  naam:       string | null
+  bootType:   string | null
+  capacity:   number | null
+}
+
+/**
+ * De (eerste) school van de zeiler + of hij mag reserveren (status goedgekeurd).
+ * Zeilers hebben meestal één school; bij meerdere nemen we de eerste.
+ */
+export async function getSailorSchool(userId: string): Promise<SailorSchool | null> {
+  const [m] = await db
+    .select({
+      schoolId:     sailingSchools.id,
+      schoolNaam:   sailingSchools.name,
+      membershipId: schoolMemberships.id,
+      role:         schoolMemberships.role,
+      status:       schoolMemberships.status,
+    })
+    .from(schoolMemberships)
+    .innerJoin(sailingSchools, eq(schoolMemberships.schoolId, sailingSchools.id))
+    .where(and(
+      eq(schoolMemberships.userId, userId),
+      isNull(schoolMemberships.deletedAt),
+      isNull(sailingSchools.deletedAt),
+    ))
+    .limit(1)
+  return m ?? null
+}
+
+/**
+ * Vloot van een school (niet-verwijderde boten), voor de reserverings-UI.
+ */
+export async function getFleetVoorSchool(schoolId: string): Promise<FleetBoot[]> {
+  const rows = await db
+    .select({
+      id:         schoolFleet.id,
+      bootNummer: schoolFleet.bootNummer,
+      naam:       schoolFleet.naam,
+      bootType:   schoolFleet.bootType,
+      capacity:   schoolFleet.capacity,
+    })
+    .from(schoolFleet)
+    .where(and(eq(schoolFleet.schoolId, schoolId), isNull(schoolFleet.deletedAt)))
+    .orderBy(schoolFleet.bootNummer)
+  return rows
+}
+
+/**
+ * Eigen (toekomstige) boot-reserveringen van de zeiler bij zijn school.
+ */
+export async function getMijnBootreserveringen(userId: string, schoolId: string): Promise<{
+  id: string; bootNummer: string | null; naam: string | null;
+  datum: string; startTijd: string; eindTijd: string;
+  status: string; opmerking: string | null; reactie: string | null;
+}[]> {
+  const rows = await db
+    .select({
+      id:         boatRentals.id,
+      bootNummer: schoolFleet.bootNummer,
+      naam:       schoolFleet.naam,
+      datum:      boatRentals.datum,
+      startTijd:  boatRentals.startTijd,
+      eindTijd:   boatRentals.eindTijd,
+      status:     boatRentals.status,
+      opmerking:  boatRentals.opmerking,
+      reactie:    boatRentals.reactie,
+    })
+    .from(boatRentals)
+    .innerJoin(schoolFleet, eq(boatRentals.bootId, schoolFleet.id))
+    .where(and(
+      eq(boatRentals.userId, userId),
+      eq(boatRentals.schoolId, schoolId),
+      isNull(boatRentals.deletedAt),
+    ))
+    .orderBy(boatRentals.datum)
+  return rows
 }

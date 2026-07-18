@@ -926,6 +926,31 @@ export const crmNotes = pgTable('crm_notes', {
   membershipIdx: index('crm_notes_membership_idx').on(t.membershipId),
 }))
 
+// ─── SCHOOL → CURSIST BERICHTEN (app-inbox) ──────────────────────────────────
+// Berichten van de zeilschool (eigenaar/instructeur) naar een specifiek lid,
+// zichtbaar in de zeiler-app onder /school-berichten. Los van de peer-to-peer
+// match-chat (messages-tabel) en van de interne CRM-notities (crmNotes).
+
+export const schoolMessages = pgTable('school_messages', {
+  id:           uuid('id').defaultRandom().primaryKey(),
+  schoolId:     uuid('school_id').notNull().references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  membershipId: uuid('membership_id').notNull().references(() => schoolMemberships.id, { onDelete: 'cascade' }),
+  fromRole:     schoolRoleEnum('from_role').notNull().default('eigenaar'),
+  titel:        text('titel').notNull(),
+  bericht:      text('bericht').notNull(),
+  gelezenOp:    timestamp('gelezen_op'),
+  createdAt:    timestamp('created_at').defaultNow(),
+}, (t) => ({
+  schoolIdx:      index('school_messages_school_idx').on(t.schoolId),
+  membershipIdx:   index('school_messages_membership_idx').on(t.membershipId),
+  createdIdx:      index('school_messages_created_idx').on(t.createdAt),
+}))
+
+export const schoolMessagesRelations = relations(schoolMessages, ({ one }) => ({
+  school:     one(sailingSchools,   { fields: [schoolMessages.schoolId],     references: [sailingSchools.id] }),
+  membership: one(schoolMemberships, { fields: [schoolMessages.membershipId], references: [schoolMemberships.id] }),
+}))
+
 // ─── NIEUWSBRIEF: ABONNEES ───────────────────────────────────────────────────
 // Double-opt-in per school. Een abonnee is gekoppeld aan een lid (membership)
 // wanneer bekend, anders loose opt-in via het inschrijfformulier op de site.

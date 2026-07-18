@@ -66,7 +66,9 @@ export default async function LoginPage({
             <p className="font-body text-sm text-error text-center">
               {error === 'demo'
                 ? 'Demo login mislukt. Probeer het opnieuw.'
-                : 'Er ging iets mis. Probeer het opnieuw.'}
+                : error === 'google'
+                  ? 'Inloggen met Google is momenteel niet beschikbaar. Gebruik de magic-link of een demo-account.'
+                  : 'Er ging iets mis. Probeer het opnieuw.'}
             </p>
           </div>
         )}
@@ -78,7 +80,14 @@ export default async function LoginPage({
           <form
             action={async () => {
               'use server'
-              await signIn('google', { redirectTo })
+              try {
+                await signIn('google', { redirectTo })
+              } catch (e: unknown) {
+                if (isRedirectError(e)) throw e
+                // OAuth-mislukt (bv. redirect_uri mismatch / geblokkeerd door Google):
+                // terug naar login met een leesbare fout i.p.v. dode error-pagina.
+                redirect('/login?error=google')
+              }
             }}
           >
             <button
