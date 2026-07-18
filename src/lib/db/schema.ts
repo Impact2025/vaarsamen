@@ -394,6 +394,10 @@ export const sailingSchools = pgTable('sailing_schools', {
   // Gegevens van de school als SEPA-crediteur (voor incasso-export).
   // { iban, bic, creditorId, naam, type?: 'RCUR'|'FRST' }
   financieel:       jsonb('financieel'),                          // SchoolFinancieel | null
+  // ─── PLATFORM ADMIN VELDEN ───────────────────────────────
+  plan:             varchar('plan', { length: 12 }).default('basis'),   // basis | school | school_pro
+  accountStatus:    varchar('account_status', { length: 12 }).default('actief'), // actief | gepauzeerd | geblokkeerd
+  laatsteActiviteitOp: timestamp('laatste_activiteit_op'),
   deletedAt:        timestamp('deleted_at'),
   createdAt:        timestamp('created_at').defaultNow(),
   updatedAt:        timestamp('updated_at').defaultNow(),
@@ -920,6 +924,8 @@ export const crmNotes = pgTable('crm_notes', {
   auteurId:   uuid('auteur_id').notNull().references(() => users.id),
   kanaal:     varchar('kanaal', { length: 20 }).default('notitie'), // notitie | email | telefoon | sms | gesprek
   inhoud:     text('inhoud').notNull(),
+  fase:       varchar('fase', { length: 20 }).default('geen'), // geen | nieuw | gekwalificeerd | klant | verloren
+  aiSamenvatting: text('ai_samenvatting'),
   createdAt:  timestamp('created_at').defaultNow(),
 }, (t) => ({
   schoolIdx: index('crm_notes_school_idx').on(t.schoolId),
@@ -1095,4 +1101,71 @@ export const lessonMaterials = pgTable('lesson_materials', {
 export const lessonMaterialsRelations = relations(lessonMaterials, ({ one }) => ({
   school:    one(sailingSchools, { fields: [lessonMaterials.schoolId], references: [sailingSchools.id] }),
   uploader:  one(users,         { fields: [lessonMaterials.uploadedById], references: [users.id] }),
+}))
+
+// ─── PRO CRM: PLATFORM-BREDE CONTACTEN ─────────────────────────────────────
+// Los van school-specifieke crmNotes; dit is de platform-CRM-lijst (alle scholen
+// + losse leads). AI-samenvatting wordt gegenereerd via de admin AI-route.
+
+export const crmContacts = pgTable('crm_contacts', {
+  id:            uuid('id').defaultRandom().primaryKey(),
+  tenantId:      uuid('tenant_id').references(() => sailingSchools.id, { onDelete: 'cascade' }),
+  naam:          text('naam').notNull(),
+  email:         text('email'),
+  telefoon:      varchar('telefoon', { length: 30 }),
+  fase:          varchar('fase', { length: 20 }).default('nieuw'), // nieuw | gekwalificeerd | klant | verloren
+  tags:          text('tags').array(),
+  aiSamenvatting: text('ai_samenvatting'),
+  aangemaaktDoor: uuid('aangemaakt_door').references(() => users.id),
+  createdAt:     timestamp('created_at').defaultNow(),
+  updatedAt:     timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  tenantIdx: index('crm_contacts_tenant_idx').on(t.tenantId),
+}))
+
+export const crmContactsRelations = relations(crmContacts, ({ one }) => ({
+  tenant:     one(sailingSchools, { fields: [crmContacts.tenantId], references: [sailingSchools.id] }),
+  auteur:     one(users,          { fields: [crmContacts.aangemaaktDoor], references: [users.id] }),
+}))
+
+// crmNotes: voeg fase + aiSamenvatting toe (delta op bestaande tabel)
+// (kolommen worden via idempotente ALTER toegepast — zie scripts/delta-crm.ts)
+
+// ─── BLOG SYSTEEM ──────────────────────────────────────────────────────────
+// Platform-blog (vaarsamen.nl/blog) met HTML-editor + publicatie + AI SEO.
+
+export const blogPosts = pgTable('blog_posts', {
+  id:             uuid('id').defaultRandom().primaryKey(),
+  titel:          text('titel').notNull(),
+  slug:           varchar('slug', { length: 120 }).notNull().unique(),
+  excerpt:        text('excerpt'),
+  inhoud:         text('inhoud').notNull(),                    // HTML (contentEditable)
+  status:         varchar('status', { length: 12 }).default('concept'), // concept | gepubliceerd
+  auteurId:       uuid('auteur_id').references(() => users.id),
+  gepubliceerdAt: timestamp('gepubliceerd_at'),
+  createdAt:      timestamp('created_at').defaultNow(),
+  updatedAt:      timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  slugUniq: uniqueIndex('blog_posts_slug_uniq').on(t.slug),
+}))
+
+export const blogSeo = pgTable('blog_seo', {
+  id:               uuid('id').defaultRandom().primaryKey(),
+  postId:           uuid('post_id').notNull().references(() => blogPosts.id, { onDelete: 'cascade' }),
+  focusKeyword:     varchar('focus_keyword', { length: 80 }),
+  metaDescription:  varchar('meta_description', { length: 320 }),
+  readabilityScore: integer('readability_score'),
+  jsonLd:           jsonb('json_ld'),
+  gegenereerdOp:    timestamp('gegenereerd_op'),
+}, (t) => ({
+  postIdx: index('blog_seo_post_idx').on(t.postId),
+}))
+
+export const blogPostsRelations = relations(blogPosts, ({ one }) => ({
+  auteur: one(users, { fields: [blogPosts.auteurId], references: [users.id] }),
+  seo:    one(blogSeo, { fields: [blogPosts.id], references: [blogSeo.postId] }),
+}))
+
+export const blogSeoRelations = relations(blogSeo, ({ one }) => ({
+  post: one(blogPosts, { fields: [blogSeo.postId], references: [blogPosts.id] }),
 }))

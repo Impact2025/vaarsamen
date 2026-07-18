@@ -7,7 +7,7 @@ import { Resend as ResendClient } from 'resend'
 import { db } from '@/lib/db'
 import { users, accounts, sessions, verificationTokens, profiles } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { DEMO_ACCOUNTS, BOET_INSTRUCTEURS } from '@/lib/db/seeds/demo'
+import { DEMO_ACCOUNTS, BOET_INSTRUCTEURS, DEMO_ADMIN_ID } from '@/lib/db/seeds/demo'
 import { ZWALUW_ACCOUNTS } from '@/lib/db/seeds/zwaluw'
 import { magicLinkEmail, magicLinkText } from '@/emails/templates'
 
@@ -79,7 +79,7 @@ if (process.env.NODE_ENV !== 'production' && process.env.DEMO_EMAIL) {
   )
 }
 
-// Multi-demo: meerdere demo accounts (instructeur + cursist)
+// Multi-demo: meerdere demo accounts (instructeur + cursist + admin)
 // Ondersteunt Zeilschool De Zwaluw accounts
 if (process.env.ALLOW_DEMO_USERS) {
   providers.push(
@@ -93,8 +93,9 @@ if (process.env.ALLOW_DEMO_USERS) {
           ?? BOET_INSTRUCTEURS.find(a => a.id === userId)
           ?? ZWALUW_ACCOUNTS.find(a => a.id === userId)
         if (!account) return null
-        // Demo users zijn direct onboarded
-        return { id: account.id, email: account.email, name: account.name, image: null, isAdmin: false, isOnboarded: true }
+        // Demo users zijn direct onboarded. Admin-demo krijgt isAdmin: true.
+        const isAdmin = userId === DEMO_ADMIN_ID
+        return { id: account.id, email: account.email, name: account.name, image: null, isAdmin, isOnboarded: true }
       },
     })
   )

@@ -3,12 +3,16 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 const NAV = [
-  { href: '/admin',            icon: 'dashboard',    label: 'Dashboard'    },
-  { href: '/admin/gebruikers', icon: 'group',        label: 'Gebruikers'   },
-  { href: '/admin/tochten',    icon: 'sailing',      label: 'Tochten'      },
-  { href: '/admin/meldingen',  icon: 'flag',         label: 'Meldingen'    },
-  { href: '/admin/cwo',        icon: 'verified',     label: 'CWO'          },
-  { href: '/admin/push',       icon: 'campaign',     label: 'Broadcast'    },
+  { href: '/admin',               icon: 'dashboard',    label: 'Dashboard'    },
+  { href: '/admin/scholen',       icon: 'sailing',      label: 'Zeilscholen'  },
+  { href: '/admin/crm',           icon: 'contacts',     label: 'CRM'          },
+  { href: '/admin/nieuwsbrief',   icon: 'campaign',     label: 'Nieuwsbrief'  },
+  { href: '/admin/blog',          icon: 'article',      label: 'Blog'         },
+  { href: '/admin/gebruikers',    icon: 'group',        label: 'Gebruikers'   },
+  { href: '/admin/tochten',       icon: 'sailing',      label: 'Tochten'      },
+  { href: '/admin/meldingen',     icon: 'flag',         label: 'Meldingen'    },
+  { href: '/admin/cwo',           icon: 'verified',     label: 'CWO'          },
+  { href: '/admin/push',          icon: 'campaign',     label: 'Broadcast'    },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

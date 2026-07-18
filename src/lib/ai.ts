@@ -75,7 +75,45 @@ export async function streamToController(
   }
 }
 
-// ─── SCORE LABELS ─────────────────────────────────────────────────────────────
+// ─── NON-STREAMING HELPER (voor JSON/structured output) ─────────────────────
+// Roep OpenRouter aan en retourneer de volledige tekst (niet-stream). Gebruik
+// voor SEO-analyse en andere structured-output taken waar we JSON willen parsen.
+
+export async function completeAi(opts: {
+  system: string
+  prompt: string
+  maxTokens?: number
+  temperature?: number
+}): Promise<string> {
+  const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://vaarsamen.nl',
+      'X-Title': 'VaarSamen',
+    },
+    body: JSON.stringify({
+      model: AI_MODEL,
+      stream: false,
+      max_tokens: opts.maxTokens ?? 1200,
+      temperature: opts.temperature ?? 0.4,
+      messages: [
+        { role: 'system', content: opts.system },
+        { role: 'user', content: opts.prompt },
+      ],
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`OpenRouter fout ${res.status}: ${body}`)
+  }
+
+  const json = await res.json() as { choices?: { message?: { content?: string } }[] }
+  return json.choices?.[0]?.message?.content ?? ''
+}
+
 
 export const SCORE_LABELS: Record<string, string> = {
   aangeboden: 'Aangeboden (A)',

@@ -18,6 +18,9 @@ export const DEMO_CURSIST_TOM     = 'aadde100-0000-0000-0000-000000000005'
 export const DEMO_CURSIST_EMMA    = 'aadde100-0000-0000-0000-000000000006'
 export const DEMO_CURSIST_DAAN    = 'aadde100-0000-0000-0000-000000000007'
 
+// Platform Admin demo-account (krijgt isAdmin: true via DEMO_ADMIN_ID in auth.ts)
+export const DEMO_ADMIN_ID        = 'aadde900-0000-0000-0000-000000000001'
+
 // Demo login accounts (zichtbaar op /school/login als ALLOW_DEMO_USERS=true)
 export const DEMO_ACCOUNTS = [
   {
@@ -47,6 +50,13 @@ export const DEMO_ACCOUNTS = [
     email: 'jan.bijker.boet@vaarsamen.nl',
     label: 'Instructeur De Boet',
     icon:  'person_check',
+  },
+  {
+    id:    'aadde900-0000-0000-0000-000000000001', // DEMO_ADMIN_ID
+    name:  'Vincent (Platform Admin)',
+    email: 'admin.demo@vaarsamen.nl',
+    label: 'Platform Admin',
+    icon:  'shield_person',
   },
 ] as const
 
@@ -289,6 +299,7 @@ export async function seedDemo() {
   const demoUsers = [
     { id: DEMO_EIGENAAR_ID,    email: 'eigenaar.demo@vaarsamen.nl',    name: 'Jan de Boer' },
     { id: DEMO_INSTRUCTEUR_ID, email: 'instructeur.demo@vaarsamen.nl', name: 'Petra Smit'  },
+    { id: DEMO_ADMIN_ID,       email: 'admin.demo@vaarsamen.nl',       name: 'Vincent (Platform Admin)', isAdmin: true },
     ...CURSISTEN.map(c => ({ id: c.id, email: c.email, name: c.name })),
   ]
 
@@ -296,10 +307,10 @@ export async function seedDemo() {
   for (const u of demoUsers) {
     await db
       .insert(users)
-      .values({ id: u.id, email: u.email, name: u.name, emailVerified: new Date('2026-01-01') })
+      .values({ id: u.id, email: u.email, name: u.name, emailVerified: new Date('2026-01-01'), isAdmin: u.isAdmin ?? false })
       .onConflictDoUpdate({
         target: users.email,
-        set: { name: u.name, id: u.id, emailVerified: new Date('2026-01-01') },
+        set: { name: u.name, id: u.id, emailVerified: new Date('2026-01-01'), isAdmin: u.isAdmin ?? false },
       })
   }
 

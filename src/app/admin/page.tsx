@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { AdminSeedSection } from './AdminSeedSection'
 import { db } from '@/lib/db'
-import { profiles, tochten, matches, reports } from '@/lib/db/schema'
+import { profiles, tochten, matches, reports, sailingSchools, newsletterSubscribers, newsletterCampaigns } from '@/lib/db/schema'
 import { count, eq, and, isNull, sql } from 'drizzle-orm'
 
 async function getStats() {
@@ -16,6 +16,9 @@ async function getStats() {
     [pendingCWO],
     [proUsers],
     [nieuwDezeWeek],
+    [scholen],
+    [abonnees],
+    [campagnes],
   ] = await Promise.all([
     db.select({ n: count() }).from(profiles).where(isNull(profiles.deletedAt)),
     db.select({ n: count() }).from(tochten).where(and(eq(tochten.status, 'open'), isNull(tochten.deletedAt))),
@@ -35,6 +38,9 @@ async function getStats() {
       sql`${profiles.createdAt} > ${weekAgo}::timestamptz`,
       isNull(profiles.deletedAt),
     )),
+    db.select({ n: count() }).from(sailingSchools),
+    db.select({ n: count() }).from(newsletterSubscribers).where(eq(newsletterSubscribers.status, 'actief')),
+    db.select({ n: count() }).from(newsletterCampaigns),
   ])
 
   return {
@@ -46,12 +52,18 @@ async function getStats() {
     pendingCWO:     pendingCWO.n,
     proUsers:       proUsers.n,
     newUsersWeek:   nieuwDezeWeek.n,
+    scholen:        scholen.n,
+    abonnees:       abonnees.n,
+    campagnes:      campagnes.n,
   }
 }
 
 const CARDS = [
   { key: 'totalUsers',     label: 'Zeilers',          icon: 'group',             href: '/admin/gebruikers',            color: '#46f1c5', alert: false },
   { key: 'newUsersWeek',   label: 'Nieuw deze week',  icon: 'person_add',        href: '/admin/gebruikers',            color: '#60a5fa', alert: false },
+  { key: 'scholen',        label: 'Zeilscholen',      icon: 'sailing',           href: '/admin/scholen',               color: '#2dd4bf', alert: false },
+  { key: 'abonnees',       label: 'Nieuwsbrief actief', icon: 'campaign',        href: '/admin/nieuwsbrief',           color: '#38bdf8', alert: false },
+  { key: 'campagnes',      label: 'Campagnes',        icon: 'send',              href: '/admin/nieuwsbrief',           color: '#818cf8', alert: false },
   { key: 'activeTochten',  label: 'Actieve tochten',  icon: 'sailing',           href: '/admin/tochten',               color: '#fbbf24', alert: false },
   { key: 'totalTochten',   label: 'Totaal tochten',   icon: 'anchor',            href: '/admin/tochten',               color: '#a78bfa', alert: false },
   { key: 'totalMatches',   label: 'Matches',          icon: 'favorite',          href: '/admin/gebruikers',            color: '#fb7185', alert: false },
