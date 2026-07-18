@@ -1697,7 +1697,13 @@ function LesmateriaalTab({
     setSaving(true); setError('')
     try {
       const buf = await bestand.arrayBuffer()
-      const b64 = Buffer.from(buf).toString('base64')
+      // Browser-safe base64 (geen Node Buffer beschikbaar in de browser).
+      const bytes = new Uint8Array(buf)
+      let bin = ''
+      for (let i = 0; i < bytes.length; i += 0x8000) {
+        bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)))
+      }
+      const b64 = btoa(bin)
       const res = await fetch(`/api/school/${schoolId}/lesmateriaal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
