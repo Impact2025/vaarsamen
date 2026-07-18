@@ -84,43 +84,9 @@ export async function POST(
       return NextResponse.json({ error: 'Bestand is groter dan 25 MB' }, { status: 400 })
     }
 
-    // School-prefix in het pad zodat bestanden per school geïsoleerd blijven.
-    const ext = (file.name.split('.').pop() || 'bin').slice(0, 8)
-    const safeName = titel.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
-    const pathname = `lesmateriaal/${schoolId}/${Date.now()}-${safeName}.${ext}`
-
-    // Lees de file als Buffer (betrouwbaarder op serverless dan File-stream).
-    const buffer = Buffer.from(await file.arrayBuffer())
-    console.error('[lesmateriaal] put start', { pathname, size: buffer.length, type: file.type })
-    const blob = await put(pathname, buffer, {
-      access: 'public',
-      contentType: file.type || 'application/octet-stream',
-      addRandomSuffix: false,
-    })
-    console.error('[lesmateriaal] put done', { url: blob.url.slice(0, 60) })
-
-    try {
-      await ensureTable()
-    } catch { /* bestaat al */ }
-
-    const [row] = await db
-      .insert(lessonMaterials)
-      .values({
-        schoolId,
-        titel,
-        beschrijving,
-        bestandsNaam: file.name,
-        bestandsUrl: blob.url,
-        bestandstype: file.type || null,
-        bestandsGrootte: file.size,
-        cwoNiveau: cwoNiveau as any,
-        categorie: categorie as any,
-        uploadedById: session.user.id,
-      })
-      .returning()
-
-    console.error('[lesmateriaal] insert done', { id: row.id })
-    return NextResponse.json({ materiaal: row }, { status: 201 })
+    // DIAGNOSE: direct return zonder put/insert om crash-oorzaak te isoleren.
+    console.error('[lesmateriaal] DIAGNOSE formData ok', { name: file.name, size: file.size, type: file.type })
+    return NextResponse.json({ diagnose: 'ok', name: file.name, size: file.size }, { status: 200 })
   } catch (err: any) {
     console.error('[lesmateriaal] POST ERROR', err?.message, err?.stack?.slice(0, 400))
     return NextResponse.json({ error: 'Serverfout bij upload', detail: String(err?.message ?? err) }, { status: 500 })
@@ -148,11 +114,10 @@ export async function DELETE(
     .limit(1)
   if (!row) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 })
 
-  // Verwijder ook het blob-bestand in Vercel Blob.
   try {
     const { del } = await import('@vercel/blob')
     await del(row.bestandsUrl)
-  } catch { /* bestand al weg of token ontbreekt lokaal */ }
+  } catch { /* bestand al weg */ }
 
   await db.execute(sql`DELETE FROM lesson_materials WHERE id = ${id}`)
   return NextResponse.json({ ok: true })
