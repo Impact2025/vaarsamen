@@ -64,7 +64,7 @@ export async function GET(
 // Cursist dient aanvraag in
 
 const CreateSchema = z.object({
-  bootId:    z.string().uuid(),
+  bootId:    z.string().min(1),
   datum:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startTijd: z.string().regex(/^\d{2}:\d{2}$/),
   eindTijd:  z.string().regex(/^\d{2}:\d{2}$/),

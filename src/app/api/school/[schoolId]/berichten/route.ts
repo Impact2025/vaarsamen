@@ -43,7 +43,7 @@ export async function GET(
 // Staff stuurt een bericht naar één of meerdere leden van de school.
 
 const CreateSchema = z.object({
-  lidIds:   z.array(z.string().uuid()).min(1),
+  lidIds:   z.array(z.string().min(1)).min(1),
   titel:    z.string().min(1).max(120),
   bericht:  z.string().min(1).max(2000),
 })
