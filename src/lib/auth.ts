@@ -10,7 +10,6 @@ import { eq } from 'drizzle-orm'
 import { DEMO_ACCOUNTS, BOET_INSTRUCTEURS } from '@/lib/db/seeds/demo'
 import { ZWALUW_ACCOUNTS } from '@/lib/db/seeds/zwaluw'
 import { magicLinkEmail, magicLinkText } from '@/emails/templates'
-import { verifyPassword } from '@/lib/password'
 
 const providers: NextAuthConfig['providers'] = []
 
@@ -100,6 +99,10 @@ providers.push(
         .where(eq(users.email, email))
         .limit(1)
       if (!user || !user.passwordHash) return null
+      // Lazy import: @/lib/password gebruikt node:crypto (scrypt) dat NIET op
+      // de Edge runtime van de middleware bestaat. Bij login draat authorize op
+      // de Node runtime, dus de dynamic import is daar veilig.
+      const { verifyPassword } = await import('@/lib/password')
       const ok = await verifyPassword(password, user.passwordHash)
       if (!ok) return null
       return { id: user.id, email: user.email, name: user.name, image: user.image, isAdmin: !!user.isAdmin }
