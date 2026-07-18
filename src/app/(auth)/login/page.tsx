@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { auth } from '@/lib/auth'
 import { cookies } from 'next/headers'
-import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID, DEMO_ADMIN_ID } from '@/lib/db/seeds/demo'
+import { DEMO_ACCOUNTS, DEMO_SCHOOL_ID } from '@/lib/db/seeds/demo'
 
 // Drie demo-rollen: zeilschool, instructeur en zeiler — elk met eigen dashboard
 const [DEMO_EIGENAAR, DEMO_INSTRUCTEUR, DEMO_CURSIST] = DEMO_ACCOUNTS
@@ -11,7 +11,6 @@ const DEMO_ROLES = [
   { userId: DEMO_EIGENAAR.id,    label: 'zeilschool',  icon: DEMO_EIGENAAR.icon,    dest: `/school/${DEMO_SCHOOL_ID}/dashboard` },
   { userId: DEMO_INSTRUCTEUR.id, label: 'instructeur', icon: DEMO_INSTRUCTEUR.icon, dest: `/school/${DEMO_SCHOOL_ID}/dashboard` },
   { userId: DEMO_CURSIST.id,     label: 'zeiler',      icon: DEMO_CURSIST.icon,     dest: '/mijn-vorderingen' },
-  { userId: DEMO_ADMIN_ID,       label: 'platform admin', icon: 'shield_person', dest: '/admin' },
 ]
 
 export default async function LoginPage({
@@ -69,7 +68,9 @@ export default async function LoginPage({
                 ? 'Demo login mislukt. Probeer het opnieuw.'
                 : error === 'google'
                   ? 'Inloggen met Google is momenteel niet beschikbaar. Gebruik de magic-link of een demo-account.'
-                  : 'Er ging iets mis. Probeer het opnieuw.'}
+                  : error === 'pw'
+                    ? 'Onjuist e-mailadres of wachtwoord.'
+                    : 'Er ging iets mis. Probeer het opnieuw.'}
             </p>
           </div>
         )}
@@ -109,6 +110,56 @@ export default async function LoginPage({
             <span className="font-label text-xs text-on-surface-variant">of</span>
             <div className="flex-1 h-px divider-line" />
           </div>
+
+          {/* E-mail + wachtwoord (echt account, bv. admin) */}
+          <form
+            action={async (formData: FormData) => {
+              'use server'
+              const email = (formData.get('email_pw') as string) ?? ''
+              const password = (formData.get('password_pw') as string) ?? ''
+              try {
+                await signIn('email-password', { email, password, redirectTo })
+              } catch (e: unknown) {
+                if (isRedirectError(e)) throw e
+                redirect('/login?error=pw')
+              }
+            }}
+            className="space-y-3"
+          >
+            <div>
+              <label htmlFor="email_pw" className="sr-only">E-mailadres</label>
+              <input
+                id="email_pw"
+                name="email_pw"
+                type="email"
+                required
+                placeholder="jouw@email.nl"
+                autoComplete="email"
+                className="form-input w-full px-4 py-4 rounded-2xl font-body text-base"
+              />
+            </div>
+            <div>
+              <label htmlFor="password_pw" className="sr-only">Wachtwoord</label>
+              <input
+                id="password_pw"
+                name="password_pw"
+                type="password"
+                required
+                placeholder="Wachtwoord"
+                autoComplete="current-password"
+                className="form-input w-full px-4 py-4 rounded-2xl font-body text-base"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-4 rounded-full gradient-primary text-on-primary
+                         font-headline font-bold shadow-glow
+                         active:scale-95 transition-all
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Inloggen met wachtwoord
+            </button>
+          </form>
 
           {/* Magic link */}
           <form

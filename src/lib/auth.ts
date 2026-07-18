@@ -7,9 +7,10 @@ import { Resend as ResendClient } from 'resend'
 import { db } from '@/lib/db'
 import { users, accounts, sessions, verificationTokens, profiles } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { DEMO_ACCOUNTS, BOET_INSTRUCTEURS, DEMO_ADMIN_ID } from '@/lib/db/seeds/demo'
+import { DEMO_ACCOUNTS, BOET_INSTRUCTEURS } from '@/lib/db/seeds/demo'
 import { ZWALUW_ACCOUNTS } from '@/lib/db/seeds/zwaluw'
 import { magicLinkEmail, magicLinkText } from '@/emails/templates'
+import { verifyPassword } from '@/lib/password'
 
 const providers: NextAuthConfig['providers'] = []
 
@@ -79,7 +80,34 @@ if (process.env.NODE_ENV !== 'production' && process.env.DEMO_EMAIL) {
   )
 }
 
-// Multi-demo: meerdere demo accounts (instructeur + cursist + admin)
+// ── E-MAIL + WACHTWOORD (echt account, bv. chat@weareimpact.nl) ──
+// Altijd aan. Verifieert tegen de password_hash kolom op users.
+providers.push(
+  Credentials({
+    id:   'email-password',
+    name: 'E-mail + wachtwoord',
+    credentials: {
+      email:    { label: 'E-mail',    type: 'email' },
+      password: { label: 'Wachtwoord', type: 'password' },
+    },
+    async authorize(credentials) {
+      const email = (credentials?.email as string | undefined)?.trim().toLowerCase()
+      const password = credentials?.password as string | undefined
+      if (!email || !password) return null
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1)
+      if (!user || !user.passwordHash) return null
+      const ok = await verifyPassword(password, user.passwordHash)
+      if (!ok) return null
+      return { id: user.id, email: user.email, name: user.name, image: user.image, isAdmin: !!user.isAdmin }
+    },
+  })
+)
+
+// Multi-demo: meerdere demo accounts (instructeur + cursist)
 // Ondersteunt Zeilschool De Zwaluw accounts
 if (process.env.ALLOW_DEMO_USERS) {
   providers.push(
@@ -93,9 +121,8 @@ if (process.env.ALLOW_DEMO_USERS) {
           ?? BOET_INSTRUCTEURS.find(a => a.id === userId)
           ?? ZWALUW_ACCOUNTS.find(a => a.id === userId)
         if (!account) return null
-        // Demo users zijn direct onboarded. Admin-demo krijgt isAdmin: true.
-        const isAdmin = userId === DEMO_ADMIN_ID
-        return { id: account.id, email: account.email, name: account.name, image: null, isAdmin, isOnboarded: true }
+        // Demo users zijn direct onboarded (nooit admin — admin gaat via echt account).
+        return { id: account.id, email: account.email, name: account.name, image: null, isAdmin: false, isOnboarded: true }
       },
     })
   )
