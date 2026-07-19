@@ -9,7 +9,7 @@ import { eq, desc } from 'drizzle-orm'
 import Image from 'next/image'
 import Link from 'next/link'
 import { CWO_LABELS, BOAT_LABELS, ROLE_LABELS, SAILING_AREAS, GEBIED_COLOR_HEX } from '@/types'
-import { signOut } from '@/lib/auth'
+import { LogoutButton } from '@/components/ui/LogoutButton'
 import { format, parseISO, isToday, isTomorrow } from 'date-fns'
 import { nl } from 'date-fns/locale'
 
@@ -416,21 +416,7 @@ export default async function ProfielPage() {
 
       {/* ── Uitloggen ──────────────────────────────────────────── */}
       <div className="flex justify-center pb-4">
-        <form action={async () => {
-          'use server'
-          await signOut({ redirectTo: '/' })
-        }}>
-          <button
-            type="submit"
-            className="flex items-center gap-1.5 font-label text-xs text-on-surface-variant/50
-                       hover:text-error transition-colors
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-error rounded px-3 py-1.5"
-            aria-label="Uitloggen"
-          >
-            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">logout</span>
-            Uitloggen
-          </button>
-        </form>
+        <LogoutButton label="Uitloggen" variant="ghost" className="text-on-surface-variant/50 hover:text-error" />
       </div>
 
     </div>

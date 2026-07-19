@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { LogoutButton } from '@/components/ui/LogoutButton'
 
 const NAV = [
   { href: '/admin',               icon: 'dashboard',    label: 'Dashboard'    },
@@ -40,7 +41,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
           ))}
         </nav>
-        <div className="px-4 py-4 border-t border-white/5">
+        <div className="px-4 py-4 border-t border-white/5 space-y-2">
           <Link
             href="/"
             className="flex items-center gap-2 font-label text-xs text-on-surface-variant hover:text-on-surface transition-colors"
@@ -48,6 +49,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <span className="material-symbols-outlined text-sm" aria-hidden="true">arrow_back</span>
             Terug naar app
           </Link>
+          {/* Altijd zichtbare uitlog-knop voor de (admin)gebruiker */}
+          <LogoutButton showIcon variant="ghost" label="Uitloggen" className="text-on-surface-variant hover:text-error" />
         </div>
       </aside>
 
@@ -65,6 +68,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <span className="material-symbols-outlined text-lg" aria-hidden="true">{item.icon}</span>
             </Link>
           ))}
+          <LogoutButton showIcon variant="ghost" label="" className="p-2 text-on-surface-variant hover:text-error" />
         </div>
       </div>
 
