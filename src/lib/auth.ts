@@ -5,8 +5,9 @@ import Resend from 'next-auth/providers/resend'
 import Credentials from 'next-auth/providers/credentials'
 import { Resend as ResendClient } from 'resend'
 import { db } from '@/lib/db'
-import { users, accounts, sessions, verificationTokens, profiles } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { users, accounts, sessions, verificationTokens, profiles, schoolMemberships } from '@/lib/db/schema'
+import { eq, and, isNull } from 'drizzle-orm'
+import { isStaff } from '@/lib/db/schema'
 import { DEMO_ACCOUNTS, BOET_INSTRUCTEURS } from '@/lib/db/seeds/demo'
 import { ZWALUW_ACCOUNTS } from '@/lib/db/seeds/zwaluw'
 import { magicLinkEmail, magicLinkText } from '@/emails/templates'
@@ -79,12 +80,14 @@ if (process.env.NODE_ENV !== 'production' && process.env.DEMO_EMAIL) {
   )
 }
 
-// ── E-MAIL + WACHTWOORD (echt account, bv. chat@weareimpact.nl) ──
-// Altijd aan. Verifieert tegen de password_hash kolom op users.
+// ── ADMIN-WACHTWOORD (uitsluitend isAdmin) ───────────────────────────────────
+// Hard gescheiden van de school-login: dit provider slaagt ALLEEN als de gebruiker
+// isAdmin=true. Een school-eigenaar (ook met wachtwoord) komt hier NIET door.
+// Wordt gebruikt door /admin/login.
 providers.push(
   Credentials({
-    id:   'email-password',
-    name: 'E-mail + wachtwoord',
+    id:   'admin-password',
+    name: 'Admin wachtwoord',
     credentials: {
       email:    { label: 'E-mail',    type: 'email' },
       password: { label: 'Wachtwoord', type: 'password' },
@@ -98,14 +101,50 @@ providers.push(
         .from(users)
         .where(eq(users.email, email))
         .limit(1)
-      if (!user || !user.passwordHash) return null
-      // Lazy import: @/lib/password gebruikt node:crypto (scrypt) dat NIET op
-      // de Edge runtime van de middleware bestaat. Bij login draat authorize op
-      // de Node runtime, dus de dynamic import is daar veilig.
+      if (!user || !user.isAdmin || !user.passwordHash) return null
       const { verifyPassword } = await import('@/lib/password')
       const ok = await verifyPassword(password, user.passwordHash)
       if (!ok) return null
-      return { id: user.id, email: user.email, name: user.name, image: user.image, isAdmin: !!user.isAdmin }
+      return { id: user.id, email: user.email, name: user.name, image: user.image, isAdmin: true }
+    },
+  })
+)
+
+// ── SCHOOL-WACHTWOORD (uitsluitend staff: eigenaar/instructeur) ───────────────
+// Hard gescheiden van de admin-login: dit provider slaagt ALLEEN als de gebruiker
+// een schoolMemberships rij heeft met rol eigenaar of instructeur. Leden/cursisten
+// (geen staff) en admins komen hier NIET door. Wordt gebruikt door /pro/login.
+providers.push(
+  Credentials({
+    id:   'school-password',
+    name: 'School wachtwoord',
+    credentials: {
+      email:    { label: 'E-mail',    type: 'email' },
+      password: { label: 'Wachtwoord', type: 'password' },
+    },
+    async authorize(credentials) {
+      const email = (credentials?.email as string | undefined)?.trim().toLowerCase()
+      const password = credentials?.password as string | undefined
+      if (!email || !password) return null
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1)
+      if (!user || !user.passwordHash || user.isAdmin) return null
+      const [membership] = await db
+        .select({ role: schoolMemberships.role })
+        .from(schoolMemberships)
+        .where(and(
+          eq(schoolMemberships.userId, user.id),
+          isNull(schoolMemberships.deletedAt),
+        ))
+        .limit(1)
+      if (!membership || !isStaff(membership.role)) return null
+      const { verifyPassword } = await import('@/lib/password')
+      const ok = await verifyPassword(password, user.passwordHash)
+      if (!ok) return null
+      return { id: user.id, email: user.email, name: user.name, image: user.image, isAdmin: false }
     },
   })
 )

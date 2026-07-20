@@ -111,56 +111,6 @@ export default async function LoginPage({
             <div className="flex-1 h-px divider-line" />
           </div>
 
-          {/* E-mail + wachtwoord (echt account, bv. admin) */}
-          <form
-            action={async (formData: FormData) => {
-              'use server'
-              const email = (formData.get('email_pw') as string) ?? ''
-              const password = (formData.get('password_pw') as string) ?? ''
-              try {
-                await signIn('email-password', { email, password, redirectTo })
-              } catch (e: unknown) {
-                if (isRedirectError(e)) throw e
-                redirect('/login?error=pw')
-              }
-            }}
-            className="space-y-3"
-          >
-            <div>
-              <label htmlFor="email_pw" className="sr-only">E-mailadres</label>
-              <input
-                id="email_pw"
-                name="email_pw"
-                type="email"
-                required
-                placeholder="jouw@email.nl"
-                autoComplete="email"
-                className="form-input w-full px-4 py-4 rounded-2xl font-body text-base"
-              />
-            </div>
-            <div>
-              <label htmlFor="password_pw" className="sr-only">Wachtwoord</label>
-              <input
-                id="password_pw"
-                name="password_pw"
-                type="password"
-                required
-                placeholder="Wachtwoord"
-                autoComplete="current-password"
-                className="form-input w-full px-4 py-4 rounded-2xl font-body text-base"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full py-4 rounded-full gradient-primary text-on-primary
-                         font-headline font-bold shadow-glow
-                         active:scale-95 transition-all
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              Inloggen met wachtwoord
-            </button>
-          </form>
-
           {/* Magic link */}
           <form
             action={async (formData: FormData) => {
@@ -194,6 +144,18 @@ export default async function LoginPage({
               {isRegistering ? 'Stuur registratielink' : 'Stuur inloglink'}
             </button>
           </form>
+
+          {/* Admin / zeilschool met wachtwoord? aparte loginpagina's */}
+          <div className="pt-2 text-center space-y-1">
+            <p className="font-body text-xs text-on-surface-variant/70">
+              Beheerder?{' '}
+              <a href="/admin/login" className="text-amber-400 hover:underline font-semibold">Admin login</a>
+            </p>
+            <p className="font-body text-xs text-on-surface-variant/70">
+              Zeilschool-eigenaar?{' '}
+              <a href="/pro/login" className="text-primary hover:underline font-semibold">School login</a>
+            </p>
+          </div>
         </div>
 
         <p className="text-center font-label text-xs text-on-surface-variant">

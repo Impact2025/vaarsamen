@@ -20,7 +20,7 @@ export default auth((req) => {
   }
 
   // Publieke routes: altijd doorlaten
-  const isPublicPage = ['/', '/login', '/registreer', '/check-email', '/school/login', '/demo'].includes(pathname)
+  const isPublicPage = ['/', '/login', '/registreer', '/check-email', '/school/login', '/pro/login', '/admin/login', '/demo'].includes(pathname)
     || pathname.startsWith('/school/join/')
     || pathname.startsWith('/boet')
     || pathname.startsWith('/blog')            // publiek platform-blog (incl. /blog/[slug])
@@ -56,6 +56,14 @@ export default auth((req) => {
   // Admin routes: redirect naar home als niet admin
   if (pathname.startsWith('/admin') && !req.auth?.user?.isAdmin) {
     return NextResponse.redirect(new URL('/', req.nextUrl))
+  }
+
+  // /pro routes: ingelogd vereist. De precieze staff-role-check gebeurt in de
+  // /pro page zelf (Node runtime, DB-toegang); hier blokkeren we enkel anoniem.
+  if (pathname.startsWith('/pro') && !isLoggedIn) {
+    const loginUrl = new URL('/pro/login', req.nextUrl)
+    loginUrl.searchParams.set('callbackUrl', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   // Onboarding check: JWT-token (gezet bij login) + cookie (gezet na afronden onboarding)

@@ -277,6 +277,12 @@ export default async function SchoolLoginPage({
               </a>
             </p>
             <p className="font-body text-xs text-on-surface-variant/60">
+              Eigenaar met wachtwoord?{' '}
+              <a href="/pro/login" className="hover:underline">
+                School login
+              </a>
+            </p>
+            <p className="font-body text-xs text-on-surface-variant/60">
               Of log in als{' '}
               <a href="/login" className="hover:underline">
                 cursist
