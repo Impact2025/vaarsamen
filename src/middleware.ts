@@ -97,5 +97,7 @@ export default auth((req) => {
 })
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // /admin/login en /pro/login zijn publieke loginpagina's — middleware slaat
+  // deze expliciet over zodat de auth-guard er niet op kan botsen.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|admin/login|pro/login).*)'],
 }
