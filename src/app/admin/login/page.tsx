@@ -11,7 +11,9 @@ export default async function AdminLoginPage({
 }: {
   searchParams: Promise<{ callbackUrl?: string; error?: string }>
 }) {
-  // Tijdelijk geen auth()-check hier; de login-pagina is publiek.
+  const session = await auth()
+  if (session?.user?.isAdmin) redirect('/admin')
+
   const { callbackUrl, error } = await searchParams
   const redirectTo = callbackUrl ?? '/admin'
 
