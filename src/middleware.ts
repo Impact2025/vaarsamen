@@ -53,8 +53,13 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Admin routes: redirect naar home als niet admin
-  if (pathname.startsWith('/admin') && !req.auth?.user?.isAdmin) {
+  // Admin routes: redirect naar home als niet admin.
+  // UITGEZONDERD /admin/login — dat is juist de (publieke) admin-loginpagina.
+  if (
+    pathname.startsWith('/admin') &&
+    pathname !== '/admin/login' &&
+    !req.auth?.user?.isAdmin
+  ) {
     return NextResponse.redirect(new URL('/', req.nextUrl))
   }
 
